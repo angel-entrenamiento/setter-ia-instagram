@@ -1,0 +1,25 @@
+{
+  "name": "setter-ia-instagram",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Setter con IA para los MD de Instagram (ManyChat + Claude), con panel para configurarlo y educarlo",
+  "type": "module",
+  "engines": {
+    "node": "24.x"
+  },
+  "scripts": {
+    "start": "node src/arrancar.js",
+    "test": "node --test \"tests/*.test.js\"",
+    "comprobar": "node src/herramientas/comprobar.js",
+    "simulador": "node src/simulador.js",
+    "prompt": "node src/herramientas/verPrompt.js",
+    "conocimiento": "node herramientas/conocimiento.js",
+    "conversaciones": "node herramientas/verConversacion.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.131.0",
+    "dotenv": "^18.0.6",
+    "nodemailer": "^10.0.16",
+    "zod": "^4.6.5"
+  }
+}

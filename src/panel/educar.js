@@ -1,0 +1,191 @@
+// IA del panel: crear el conocimiento desde un cuestionario y proponer correcciones a partir de una conversación.
+import crypto from "node:crypto";
+import { idModelo } from "../config.js";
+import { negocio, dueno } from "../negocio.js";
+import { pedirTexto } from "../cerebro/llm.js";
+import { SECCIONES, leerSeccion, guardarSeccion, plantilla } from "../cerebro/conocimiento.js";
+import { construirPrompt } from "../cerebro/prompt.js";
+import { nombreAutor } from "../avisos/emails.js";
+
+// ---------- Cuestionario inicial ----------
+
+export const PREGUNTAS = [
+  ["dedicacion", "¿A qué te dedicas y a quién ayudas?", "Ej.: entrenadora online para mujeres de 35-55 que quieren perder grasa sin dietas extremas. Cuanto más concreto, mejor."],
+  ["historia", "Tu historia y tu autoridad", "Formación, años de experiencia, nº de clientes, tu propia historia (por qué te dedicas a esto)…"],
+  ["avatar", "Tu cliente ideal: qué le pasa, qué ha probado y qué quiere", "Sus problemas, miedos, frases típicas, lo que ha probado sin éxito y lo que de verdad desea."],
+  ["programa", "Tu programa principal (el que se vende en la llamada)", "Nombre, qué incluye, duración, garantía, formas de pago. El precio NO se dirá por MD."],
+  ["llamada", "La llamada que propone el setter", "Ej.: videollamada gratuita de 15-20 minutos por Google Meet conmigo, para ver su caso y explicarle el paso a paso."],
+  ["cualificacion", "¿Quién encaja y quién NO encaja?", "A quién quieres en llamada y a quién no (y qué hacer con ellos: recurso gratuito, cierre amable…)."],
+  ["alarmas", "Señales de alarma (si aplica)", "Situaciones en las que el setter debe parar y recomendar otro profesional (médico, psicólogo…). Si no aplica, déjalo vacío."],
+  ["producto_barato", "Producto de venta directa por MD (opcional)", "Si tienes un producto barato que el setter puede vender directamente: nombre, precio, qué incluye, para quién es y para quién NO, landing y enlace de pago."],
+  ["recursos", "Recursos gratuitos y enlaces", "Guías, vídeos, reels, casos de éxito… con su enlace y cuándo usar cada uno. El setter solo enviará enlaces que estén aquí."],
+  ["objeciones", "Objeciones frecuentes y cómo respondes", "Precio, tiempo, pareja, desconfianza, 'ya lo he probado todo'… y lo que contestas tú."],
+  ["voz", "Cómo escribes por MD", "Tú o usted, muletillas, emojis que usas, si escribes mensajes cortos, expresiones típicas tuyas…"],
+  ["bienvenida", "¿Escribes tú a mano una bienvenida a los seguidores nuevos?", "Si lo haces, pega el texto. El setter la tendrá en cuenta para no presentarse cuando contesten."],
+  ["ejemplos", "Ejemplos de conversaciones reales", "Pega 3-6 conversaciones tuyas por MD que acabaron en llamada (cambia los nombres). Es lo que más ayuda a que suene como tú."],
+  ["extra", "Material extra (opcional)", "Pega aquí cualquier documento de tu marca: avatar, propuesta de valor, guion de ventas…"],
+];
+
+const INSTRUCCIONES_SECCION = {
+  "00_reglas_del_asistente.md":
+    "Adapta las reglas al negocio: quién encaja para la llamada (criterios claros y comprobables), qué hacer con quien no encaja, las señales de alarma (si no hay, escribe que no aplica y que ante cualquier tema de salud grave se recomienda consultar a un profesional), la ruta del producto de venta directa (o elimínala si no hay) y el precio. Mantén TODAS las reglas generales de la plantilla (presentación, una pregunta por turno, nunca dar el precio del programa principal, decisor económico, acciones, estilo).",
+  "01_marca_y_voz.md":
+    "Describe quién es el dueño, su posicionamiento, el cliente ideal (perfiles, miedos, creencias, escenas que conectan) y su forma de escribir por MD con ejemplos concretos sacados de lo que ha contado y de sus conversaciones.",
+  "02_guion_y_cualificacion.md":
+    "Adapta las aperturas y la secuencia de descubrimiento con preguntas propias de este nicho (sustituye los ejemplos genéricos). Mantén la estructura: aperturas, descubrimiento (situación, desde cuándo, afectación, qué ha probado, objetivo, prioridad, implicación, decisor), decisión de ruta, presentación de la llamada, pregunta de inversión y seguimientos.",
+  "03_objeciones_y_respuestas.md":
+    "Mantén el método de la plantilla y escribe las objeciones típicas de este nicho con respuestas en la voz del dueño (usa las suyas si las ha dado).",
+  "04_productos_y_enlaces.md":
+    "Rellena el programa principal (sin precio), el producto de venta directa si existe (con precio, criterios, para quién NO es y enlaces), los recursos gratuitos en una tabla con cuándo usarlos y su enlace, casos de éxito y datos útiles. Copia los enlaces EXACTAMENTE como los ha dado; no inventes ninguno.",
+  "05_ejemplos_conversaciones.md":
+    "Si hay conversaciones reales, ordénalas como ejemplos numerados con un título que diga qué enseñan (LEAD: / DUEÑO:), anonimizadas. Si no hay, deja la plantilla tal cual con sus [RELLENAR].",
+};
+
+function respuestasEnTexto(respuestas) {
+  return PREGUNTAS.filter(([k]) => respuestas[k]?.trim())
+    .map(([k, titulo]) => `## ${titulo}\n${respuestas[k].trim()}`)
+    .join("\n\n");
+}
+
+/** Redacta las 6 secciones a partir del cuestionario (6 llamadas en paralelo, ~1-2 minutos, ~0,50 $). */
+export async function crearConocimientoConIA(respuestas) {
+  const datos = [
+    `Asistente: ${negocio.nombreAsistente}`,
+    `Dueño: ${negocio.nombreDueno}`,
+    `Negocio: ${negocio.nombreNegocio}`,
+    `Instagram: @${negocio.cuentaInstagram}`,
+    `País principal: ${negocio.paisPrincipal}`,
+    `Llamada: ${negocio.descripcionLlamada}`,
+  ].join("\n");
+  const material = respuestasEnTexto(respuestas);
+  let coste = 0;
+  const resultados = await Promise.all(
+    SECCIONES.map(async ({ archivo, nombre }) => {
+      const { texto, coste: c } = await pedirTexto({
+        model: idModelo("opus"),
+        max_tokens: 16000,
+        esfuerzo: "medium",
+        system: `Eres experto en setters de Instagram y en ventas por conversación. Escribes en español de España, claro y concreto, la sección "${nombre}" del conocimiento de un asistente de IA que contesta los MD de Instagram de un negocio. Partes de una PLANTILLA y la adaptas al negocio con la información que te da el dueño.
+
+Reglas:
+- Devuelve solo el texto en markdown de la sección, empezando por su título "# ...". Nada antes ni después.
+- Respeta la estructura y las reglas generales de la plantilla; sustituye los ejemplos genéricos y los [RELLENAR] por contenido real del negocio.
+- No inventes datos (precios, garantías, cifras, títulos, enlaces, testimonios). Si falta algo importante, deja un hueco "[RELLENAR: qué falta]" para que el dueño lo complete.
+- Puedes usar los marcadores {asistente}, {dueno}, {negocio}, {cuenta}, {llamada} y {producto_barato}: el sistema los sustituye por los datos reales.
+- ${INSTRUCCIONES_SECCION[archivo]}`,
+        mensajes: [
+          {
+            role: "user",
+            content: `DATOS BÁSICOS\n${datos}\n\nLO QUE CUENTA EL DUEÑO\n${material || "(no ha contestado el cuestionario)"}\n\nPLANTILLA DE LA SECCIÓN\n<plantilla>\n${plantilla(archivo)}\n</plantilla>`,
+          },
+        ],
+      });
+      coste += c;
+      return [archivo, texto];
+    }),
+  );
+  for (const [archivo, texto] of resultados) if (texto?.trim().startsWith("#")) guardarSeccion(archivo, texto);
+  return { coste, secciones: resultados.length };
+}
+
+// ---------- Educar desde una conversación ----------
+
+const ESQUEMA_PROPUESTA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["resumen", "cambios"],
+  properties: {
+    resumen: { type: "string" },
+    cambios: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["archivo", "buscar", "reemplazar", "motivo"],
+        properties: {
+          archivo: { type: "string", enum: SECCIONES.map((s) => s.archivo) },
+          buscar: { type: "string" },
+          reemplazar: { type: "string" },
+          motivo: { type: "string" },
+        },
+      },
+    },
+  },
+};
+
+function conversacionEnTexto(conv) {
+  return conv.historial
+    .filter((m) => m.tipo !== "nota")
+    .map((m) => `${nombreAutor(m.rol)}: ${m.tipo !== "texto" ? `[${m.tipo}] ` : ""}${m.texto}`)
+    .join("\n");
+}
+
+/**
+ * El dueño explica qué debería haber hecho distinto el asistente; la IA propone cambios concretos en el conocimiento.
+ * @returns {{ id, resumen, cambios: {archivo, buscar, reemplazar, motivo}[], coste }}
+ */
+export async function proponerCorreccion(almacen, conv, comentario) {
+  const conocimiento = SECCIONES.map(({ archivo }) => `<archivo nombre="${archivo}">\n${leerSeccion(archivo)}\n</archivo>`).join("\n\n");
+  const { texto, coste } = await pedirTexto({
+    model: idModelo("opus"),
+    max_tokens: 12000,
+    esfuerzo: "medium",
+    esquemaJson: ESQUEMA_PROPUESTA,
+    system: `Mantienes el conocimiento de ${negocio.nombreAsistente}, el asistente de IA que contesta los MD de Instagram de ${dueno()}. ${dueno()} te dice qué debería haber hecho distinto el asistente en una conversación, y tú propones los cambios MÍNIMOS en el conocimiento para que la próxima vez lo haga bien en todas las conversaciones parecidas (no solo en esta).
+
+Cómo proponer cambios:
+- Cada cambio es una sustitución exacta: "buscar" es un fragmento que aparece LITERALMENTE en el archivo (cópialo carácter a carácter, lo bastante largo para ser único) y "reemplazar" es el texto nuevo. Para añadir algo nuevo sin quitar nada, usa "buscar" vacío y se añadirá al final del archivo; o mejor, busca la línea junto a la que debe ir y reemplázala por esa misma línea más lo nuevo.
+- Escribe reglas generales y claras, en el estilo del archivo, sin nombres de leads concretos.
+- Si lo que pide contradice una regla existente, cambia esa regla en vez de añadir otra contradictoria.
+- Normalmente bastan 1-3 cambios. "resumen": 1-3 frases sencillas para ${dueno()} explicando qué vas a cambiar.
+- "motivo": una frase por cambio.`,
+    mensajes: [
+      {
+        role: "user",
+        content: `CONOCIMIENTO ACTUAL\n${conocimiento}\n\nCONVERSACIÓN\n${conversacionEnTexto(conv) || "(vacía)"}\n\nLO QUE DICE ${dueno().toUpperCase()}\n${comentario}`,
+      },
+    ],
+  });
+  let propuesta;
+  try {
+    propuesta = JSON.parse(texto);
+  } catch {
+    throw new Error("La IA no ha devuelto una propuesta válida. Prueba a explicarlo con otras palabras.");
+  }
+  const id = crypto.randomBytes(6).toString("hex");
+  const guardada = { id, convId: conv.id, comentario, ...propuesta, fecha: new Date().toISOString() };
+  almacen.fijarAjuste(`propuesta:${id}`, JSON.stringify(guardada));
+  return { ...guardada, coste };
+}
+
+export function leerPropuesta(almacen, id) {
+  try {
+    return JSON.parse(almacen.ajuste(`propuesta:${id}`) ?? "null");
+  } catch {
+    return null;
+  }
+}
+
+/** ¿Se puede aplicar este cambio sobre el texto actual? */
+export function cambioAplicable(c) {
+  return !c.buscar || leerSeccion(c.archivo).includes(c.buscar);
+}
+
+/** Aplica los cambios elegidos (por índice). Devuelve cuántos se aplicaron y cuáles fallaron. */
+export function aplicarPropuesta(almacen, propuesta, indices) {
+  const aplicados = [];
+  const fallidos = [];
+  propuesta.cambios.forEach((c, i) => {
+    if (!indices.includes(i)) return;
+    const actual = leerSeccion(c.archivo);
+    if (c.buscar && !actual.includes(c.buscar)) return fallidos.push(i);
+    const nuevo = c.buscar ? actual.replace(c.buscar, () => c.reemplazar) : `${actual}\n\n${c.reemplazar.trim()}`;
+    guardarSeccion(c.archivo, nuevo);
+    aplicados.push(i);
+  });
+  almacen.fijarAjuste(`propuesta:${propuesta.id}`, JSON.stringify({ ...propuesta, aplicada: new Date().toISOString(), aplicados }));
+  return { aplicados, fallidos };
+}
+
+/** Prompt completo actual (para la vista "ver el prompt" del panel). */
+export const promptActual = () => construirPrompt();

@@ -1,0 +1,23 @@
+# Setter IA para Instagram — instrucciones para Claude Code
+
+El usuario es el dueño de un negocio (normalmente no programa). Háblale en español sencillo. Su setter ya funciona en Railway; aquí le ayudas a **educarlo** (mejorar su conocimiento) y, si lo pide, a cambiar el código.
+
+## Cómo está montado
+- `src/` servidor Node 24 (sin framework). `src/motor.js` (decide y llama a la IA), `src/cerebro/reglas.js` (reglas duras: precios, enlaces, llamada, identidad), `src/cerebro/prompt.js` (construye el prompt), `src/panel/` (panel web y la IA de "Enseñar"), `src/negocio.js` (Ajustes del panel).
+- El **conocimiento** (6 secciones markdown) vive en la base de datos del servidor y se edita en el panel. `conocimiento/` del repo son solo las **plantillas** iniciales: no las edites para cambiar el setter de un usuario.
+- Marcadores que se sustituyen solos: `{asistente}`, `{dueno}`, `{negocio}`, `{cuenta}`, `{llamada}`, `{producto_barato}`.
+
+## Educar al setter (lo habitual)
+1. Comprueba que existe `.env` con `URL_PUBLICA` y `PANEL_CLAVE` (copia de `.env.example`). Si falta, pídeselos al usuario y dile que los escriba él en el archivo (no por el chat).
+2. `npm install` (la primera vez).
+3. `npm run conocimiento -- bajar` → descarga a `mi-conocimiento/` las 6 secciones y `ajustes.json`.
+4. Lee conversaciones reales: `npm run conversaciones` (últimas) o `npm run conversaciones -- nombre`.
+5. Propón cambios concretos al usuario, edítalos en `mi-conocimiento/*.md` y, con su visto bueno, `npm run conocimiento -- subir` (se aplica al momento; el panel guarda la versión anterior para deshacer).
+6. Para probar en local sin Instagram: `npm run simulador` (usa `mi-conocimiento/` y gasta IA, ~0,03 $ por turno; necesita `ANTHROPIC_API_KEY` en `.env`).
+
+Reglas al editar el conocimiento: reglas generales (no casos de un lead concreto), sin contradecir otras reglas, sin inventar precios, garantías, resultados ni enlaces. Los enlaces que el setter puede enviar son solo los que aparecen en el conocimiento (más el enlace de pago de Ajustes).
+
+## Cambiar código
+- `npm test` debe pasar siempre (no gasta IA).
+- El servidor se actualiza solo en Railway cuando cambia su repositorio de GitHub. Si el usuario instaló desde la plantilla sin repositorio propio, explícale que para cambiar código tiene que crear su copia (Railway → servicio → Settings → "Eject" o conectar su propio repo).
+- No subas nunca `.env`, `datos/` ni `mi-conocimiento/` (están en `.gitignore`).

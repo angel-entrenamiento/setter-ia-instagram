@@ -1,0 +1,76 @@
+# Guía de instalación de tu Setter IA
+
+Tiempo: 45-60 minutos la primera vez. No hace falta saber programar.
+
+## Lo que necesitas (y lo que cuesta, aproximado)
+| Servicio | Para qué | Coste aproximado |
+|---|---|---|
+| **Instagram profesional** conectado a una página de Facebook | Tu cuenta | Gratis |
+| **ManyChat Pro** | Recibe y envía los MD de Instagram | Desde ~15 $/mes |
+| **Anthropic (Claude)** | La inteligencia artificial | Pago por uso: ~0,03 $ por respuesta. Con 200-300 leads al mes, unos 20-40 $/mes |
+| **Railway** (plan Hobby) | El servidor donde vive tu setter | 5 $/mes |
+| **Resend** | Los emails de aviso | Gratis |
+
+Una **segunda cuenta de Instagram** tuya (personal o de pruebas) para probarlo antes de lanzarlo.
+
+> ⚠️ Tus claves (API keys) son como contraseñas: no las pegues en chats ni las compartas. Solo van en Railway.
+
+---
+
+## Paso 1 · Anthropic (la IA)
+1. Entra en **console.anthropic.com** y crea tu cuenta.
+2. **Billing** → añade un método de pago y carga saldo (por ejemplo 20 $). Recomendado: activa la recarga automática y pon un límite mensual.
+3. **API Keys** → **Create Key** → ponle de nombre "setter" → copia la clave (empieza por `sk-ant-`). Guárdala un momento en una nota: solo se ve una vez.
+
+## Paso 2 · ManyChat
+1. Entra en **manychat.com**, crea tu cuenta y conecta tu **Instagram** (te pedirá conectarlo con Facebook).
+2. Contrata el plan **Pro** (lo necesitas para la API y las peticiones externas).
+3. **Settings → API** → **Generate your API Key** → copia la clave.
+
+## Paso 3 · Resend (emails de aviso)
+1. Entra en **resend.com** y crea tu cuenta **con el email donde quieres recibir los avisos** (importante: sin dominio propio, Resend solo puede enviarte emails a ese mismo email).
+2. **API Keys** → **Create API Key** → copia la clave (empieza por `re_`).
+
+## Paso 4 · Crear tu setter en Railway
+1. Pulsa el botón **Deploy on Railway** que te han pasado (o el del README).
+2. Crea tu cuenta en Railway (puedes entrar con GitHub o Google) y contrata el plan **Hobby** (5 $/mes).
+3. Te pedirá estas variables. Pega cada una:
+   - `ANTHROPIC_API_KEY` → la clave del paso 1
+   - `MANYCHAT_API_KEY` → la del paso 2
+   - `RESEND_API_KEY` → la del paso 3
+   - `PANEL_CLAVE` → inventa una contraseña para tu panel (apúntala)
+4. Pulsa **Deploy** y espera 2-3 minutos.
+5. Abre tu servicio → **Settings → Networking**: ahí está tu dirección (algo como `https://setter-production-xxxx.up.railway.app`). Si no hay ninguna, pulsa **Generate Domain**.
+6. Abre esa dirección y añade `/panel` al final. Usuario: **admin** · Contraseña: la de `PANEL_CLAVE`.
+
+## Paso 5 · Configurarlo desde el panel
+El panel te enseña una lista de **Primeros pasos**. En orden:
+1. **Ajustes**: el nombre de tu asistente, tu nombre, tu negocio, tu cuenta de Instagram, tu email (el de Resend) y tu cuenta de pruebas. Si tienes un producto barato para vender por MD, actívalo y pon su precio y enlace de pago. Pulsa **Guardar** y luego **Comprobar que las claves funcionan** (te llegará un email de prueba).
+2. **Conocimiento → Rellenarlo con IA**: contesta el cuestionario (cuanto más detalle, mejor; lo que más ayuda son tus conversaciones reales). En 1-2 minutos tendrás las 6 secciones redactadas.
+3. Repasa cada sección y completa los huecos **[RELLENAR]** que queden.
+4. **Probar**: habla con tu setter como si fueras distintos tipos de lead (el que encaja, el que pregunta el precio de primeras, el que no encaja, el que duda…). Cuando haga algo que no te guste, usa **Enseñar a…** debajo del chat: explícale qué debería haber hecho y aplica el cambio que te propone.
+
+## Paso 6 · Conectar ManyChat
+En el panel → **Conectar ManyChat** tienes todo para copiar y pegar:
+1. **Respuesta predeterminada de Instagram** → una acción **Petición externa** con la URL, la cabecera `X-Token` y el cuerpo que te indica el panel. Publícala.
+2. Crea las etiquetas **IA_PAUSA**, **IA_ON** y **ALUMNO**.
+3. Desde tu cuenta de pruebas, escribe un MD a tu Instagram. Tu setter contestará en 1-2 minutos. Escribe `#reset` para empezar de cero.
+
+## Paso 7 · Lanzarlo
+Cuando estés contento con las pruebas: panel → **Inicio** → **Activar para todos**. Puedes volver al modo prueba cuando quieras.
+
+---
+
+## El día a día
+- **Emails que recibirás**: `[AGENDAR]` (te toca cerrar día y hora de la llamada), `[AUDIO]` (escúchalo, contesta tú y apunta en una línea qué dijo con el enlace del email), `[ALERTA]`, `[HUMANO]`, `[PAGO]`, `[ERROR]`, y cada mañana `[SEGUIMIENTOS]` con mensajes ya redactados para que los envíes tú.
+- **Quedarte tú una conversación**: etiqueta **IA_PAUSA** en ManyChat (o el botón Pausar del panel). Para devolvérsela: **IA_ON**.
+- **Clientes actuales**: etiqueta **ALUMNO** y el setter nunca les contesta.
+- **Si escribes tú en un chat** desde la app de Instagram, el setter lo tiene en cuenta y sigue después sin contradecirte.
+- **Educarlo**: revisa conversaciones en el panel y usa **Enseñar a…** cuando algo no te guste. Es la forma más rápida de que mejore.
+- **Gasto**: lo ves en el panel (Inicio → Gasto IA) y en console.anthropic.com. Cada vez que cambias el conocimiento, la primera respuesta cuesta algo más (~0,20 $) porque la IA vuelve a leerlo todo.
+
+## Problemas frecuentes
+- **No contesta**: ¿estás en modo prueba y escribes desde una cuenta que no está en "Cuentas de prueba"? ¿Está publicada la respuesta predeterminada de ManyChat? Mira el paso "Conectar ManyChat" del panel.
+- **Contesté desde la bandeja de ManyChat y ya no responde**: ManyChat pausa las automatizaciones en ese chat; pulsa «Reanudar».
+- **No me llegan los emails**: el email de Ajustes tiene que ser el mismo con el que creaste Resend. Mira también en spam.
+- **"Falta la contraseña del panel"**: añade la variable `PANEL_CLAVE` en Railway → tu servicio → Variables.

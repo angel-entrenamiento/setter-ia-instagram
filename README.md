@@ -4,7 +4,7 @@ Un asistente con IA que contesta los MD de tu Instagram como lo haría un buen s
 
 **Para empezar, sigue la [guía de instalación](GUIA_INSTALACION.md)** (unos 45-60 minutos la primera vez).
 
-[![Deploy on Railway](https://railway.com/button.svg)](ENLACE_DEL_BOTON)
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/9TiBI3?referralCode=MS_vLp)
 
 ## Qué hace
 - Contesta a todos los MD (vía ManyChat), con retraso humano y agrupando los mensajes seguidos.

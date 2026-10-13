@@ -2,8 +2,10 @@
 import { config } from "./config.js";
 import { negocio } from "./negocio.js";
 import { crearServidor, AlmacenSqlite } from "./servidor.js";
+import { comprobarLicencia, estadoLicencia } from "./licencia.js";
 
 const faltan = [
+  ["LICENCIA", process.env.LICENCIA],
   ["ANTHROPIC_API_KEY", process.env.ANTHROPIC_API_KEY],
   ["MANYCHAT_API_KEY", config.manychatApiKey],
   ["RESEND_API_KEY", config.resendApiKey || config.gmailContrasena],
@@ -18,6 +20,19 @@ servidor.listen(config.puerto, () => {
     `${negocio.nombreAsistente} escuchando en el puerto ${config.puerto} · ${config.modoPrueba ? `MODO PRUEBA (${config.listaBlanca.length ? `@${config.listaBlanca.join(", @")}` : "sin cuentas de prueba"})` : "ACTIVO PARA TODOS"} · modelo ${config.modelo} · panel ${config.urlPublica}/panel`,
   );
 });
+
+// Licencia: al arrancar, cada 6 h y, si no es válida, cada 5 min (por si Ángel la activa o vuelve la conexión)
+async function revisarLicencia() {
+  const antes = estadoLicencia().estado;
+  const e = await comprobarLicencia(almacen, { cuenta: negocio.cuentaInstagram, url: config.urlPublica });
+  if (e.estado !== antes || e.estado !== "ok") console.log(`[licencia] ${e.estado}${e.motivo ? `: ${e.motivo}` : ""}`);
+}
+await revisarLicencia();
+setInterval(() => {
+  const e = estadoLicencia();
+  const hace = Date.now() - Date.parse(e.comprobadaAt ?? 0);
+  if (hace > 6 * 3600000 || (e.estado !== "ok" && hace > 5 * 60000)) revisarLicencia().catch(() => {});
+}, 60000);
 
 // Cada 3 s se lanzan las conversaciones a las que les toca responder (cada una por separado)
 setInterval(() => {

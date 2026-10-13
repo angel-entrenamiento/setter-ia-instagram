@@ -4,6 +4,8 @@ Un asistente con IA que contesta los MD de tu Instagram como lo haría un buen s
 
 **Para empezar, sigue la [guía de instalación](GUIA_INSTALACION.md)** (unos 45-60 minutos la primera vez).
 
+> 🔑 Necesitas una **clave de licencia personal** que da Ángel López. Este software es privado: solo puede usarlo quien tenga su autorización (ver [LICENSE](LICENSE)).
+
 [![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/9TiBI3?referralCode=MS_vLp)
 
 ## Qué hace

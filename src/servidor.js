@@ -17,6 +17,7 @@ import { construirPrompt } from "./cerebro/prompt.js";
 import { SECCIONES, usarAlmacenConocimiento, guardarSeccion, restaurarAnterior, todoElConocimiento } from "./cerebro/conocimiento.js";
 import { crearConocimientoConIA, proponerCorreccion, leerPropuesta, aplicarPropuesta } from "./panel/educar.js";
 import * as P from "./panel/paginas.js";
+import { licenciaPermite, estadoLicencia, comprobarLicencia } from "./licencia.js";
 
 const ID_PRUEBA = "panel:prueba";
 
@@ -161,6 +162,12 @@ export function crearServidor({ almacen, manychat: mc = manychat, enviarEmail: e
     const m = (re) => ruta.match(re);
     const metodo = req.method;
     const aviso = MENSAJES[url.searchParams.get("m")] ?? "";
+
+    if (ruta === "/panel/licencia" && metodo === "POST") {
+      await comprobarLicencia(almacen, { cuenta: negocio.cuentaInstagram, url: config.urlPublica });
+      return redirigir(res, "/panel");
+    }
+    if (!licenciaPermite()) return html(res, P.htmlSinLicencia(estadoLicencia()), 403);
 
     if (ruta === "/panel") return html(res, P.htmlInicio(almacen));
 

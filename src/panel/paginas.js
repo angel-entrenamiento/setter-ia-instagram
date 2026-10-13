@@ -334,7 +334,7 @@ ${campoOpciones("esfuerzo", "Cuánto piensa antes de responder", [["medium", "No
 </div>
 <p><button class="principal">Guardar ajustes</button></p></form>
 <div class="tarjeta" id="claves"><h2 style="margin-top:0">Claves (se ponen en Railway → tu servicio → Variables)</h2>
-<ul>${clave("ANTHROPIC_API_KEY", process.env.ANTHROPIC_API_KEY)}${clave("MANYCHAT_API_KEY", config.manychatApiKey)}${clave("RESEND_API_KEY", config.resendApiKey || config.gmailContrasena)}${clave("PANEL_CLAVE", config.panelClave)}</ul>
+<ul>${clave("LICENCIA", process.env.LICENCIA)}${clave("ANTHROPIC_API_KEY", process.env.ANTHROPIC_API_KEY)}${clave("MANYCHAT_API_KEY", config.manychatApiKey)}${clave("RESEND_API_KEY", config.resendApiKey || config.gmailContrasena)}${clave("PANEL_CLAVE", config.panelClave)}</ul>
 <form method="post" action="/panel/comprobar"><button data-espera="Comprobando…">Comprobar que las claves funcionan (envía un email de prueba)</button></form>
 ${comprobacion ? `<ul>${comprobacion.map(([ok, t]) => `<li class="${ok ? "ok" : "mal"}">${ok ? "✅" : "❌"} ${esc(t)}</li>`).join("")}</ul>` : ""}</div>`,
     "/panel/ajustes",
@@ -378,6 +378,18 @@ export function htmlManychat(almacen) {
     "/panel/manychat",
   );
 }
+
+export const htmlSinLicencia = (e) =>
+  pagina(
+    "Licencia",
+    `<h1>🔒 Tu setter está bloqueado</h1>
+<div class="tarjeta mal">${esc(e.motivo || "La licencia no es válida.")}</div>
+<div class="tarjeta"><p>Mientras tanto ${asistente()} no contesta a nadie. Para solucionarlo:</p>
+<ol class="pasos"><li>Si no tienes clave, pídesela a Ángel López.</li>
+<li>En Railway, abre tu servicio → <b>Variables</b> y pon tu clave en <span class="copiar">LICENCIA</span>. Railway reinicia el servidor solo.</li>
+<li>Si ya la tenías puesta, pulsa el botón para comprobarla otra vez.</li></ol>
+<form method="post" action="/panel/licencia"><button class="principal" data-espera="Comprobando…">Comprobar la licencia</button></form></div>`,
+  );
 
 export const htmlPrompt = (texto) =>
   pagina(

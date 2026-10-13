@@ -6,6 +6,7 @@ import { config } from "./config.js";
 import { procesarEvento, anotarMensajeLead, aplicarEtiqueta, enListaBlanca, anotarRecursoEnviado } from "./motor.js";
 import { construirEmail } from "./avisos/emails.js";
 import { negocio } from "./negocio.js";
+import { licenciaPermite } from "./licencia.js";
 
 const TIPO_MOTOR = {
   texto: "texto",
@@ -180,6 +181,7 @@ export function crearOrquestador({ almacen, manychat, enviarEmail, log = console
   const recientes = new Map(); // anti-duplicados: subscriberId → { texto, fecha }
 
   async function recibirMensajeManychat({ subscriberId, texto, origen, recurso }) {
+    if (!licenciaPermite()) return null; // sin licencia válida no se atiende a nadie (ni se guarda)
     const t = String(texto ?? "").trim();
     const previo = recientes.get(String(subscriberId));
     if (previo && previo.texto === t && Date.now() - previo.fecha < 5000) return null;
@@ -229,6 +231,11 @@ export function crearOrquestador({ almacen, manychat, enviarEmail, log = console
     try {
       const conv = almacen.obtener(convId);
       if (!conv || !conv.procesarEn) return;
+      if (!licenciaPermite()) {
+        conv.procesarEn = null;
+        conv.bandeja = [];
+        return void almacen.guardar(conv);
+      }
       conv.procesarEn = null;
       const bandeja = conv.bandeja ?? [];
       if (!bandeja.length) return void almacen.guardar(conv);

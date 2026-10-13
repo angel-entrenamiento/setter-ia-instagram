@@ -13,6 +13,8 @@ Tiempo: 45-60 minutos la primera vez. No hace falta saber programar.
 
 Una **segunda cuenta de Instagram** tuya (personal o de pruebas) para probarlo antes de lanzarlo.
 
+Tu **clave de licencia** personal (empieza por `SETTER-`): te la da Ángel López. Es solo para ti y solo funciona en un setter. No la compartas: el uso de este software está limitado a quien Ángel autoriza (ver el archivo LICENSE).
+
 > ⚠️ Tus claves (API keys) son como contraseñas: no las pegues en chats ni las compartas. Solo van en Railway.
 
 ---
@@ -35,6 +37,7 @@ Una **segunda cuenta de Instagram** tuya (personal o de pruebas) para probarlo a
 1. Pulsa el botón **Deploy on Railway** que te han pasado (o el del README).
 2. Crea tu cuenta en Railway (puedes entrar con GitHub o Google) y contrata el plan **Hobby** (5 $/mes).
 3. Te pedirá estas variables. Pega cada una:
+   - `LICENCIA` → tu clave de licencia (la que te ha dado Ángel)
    - `ANTHROPIC_API_KEY` → la clave del paso 1
    - `MANYCHAT_API_KEY` → la del paso 2
    - `RESEND_API_KEY` → la del paso 3
@@ -74,3 +77,4 @@ Cuando estés contento con las pruebas: panel → **Inicio** → **Activar para 
 - **Contesté desde la bandeja de ManyChat y ya no responde**: ManyChat pausa las automatizaciones en ese chat; pulsa «Reanudar».
 - **No me llegan los emails**: el email de Ajustes tiene que ser el mismo con el que creaste Resend. Mira también en spam.
 - **"Falta la contraseña del panel"**: añade la variable `PANEL_CLAVE` en Railway → tu servicio → Variables.
+- **"Tu setter está bloqueado"**: revisa la variable `LICENCIA` en Railway. Si dice que la clave ya se usa en otro setter (por ejemplo, porque lo has reinstalado), pide a Ángel que la libere.

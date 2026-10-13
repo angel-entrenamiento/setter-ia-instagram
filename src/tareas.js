@@ -1,6 +1,7 @@
 // Tareas programadas: seguimientos, email diario de seguimientos (9:00), resumen semanal (lunes 9:00) y limpieza RGPD.
 import { config } from "./config.js";
 import { negocio } from "./negocio.js";
+import { licenciaPermite } from "./licencia.js";
 import { admiteSeguimiento, redactarSeguimiento, enListaBlanca, aplicarEtiqueta, soloRecurso } from "./motor.js";
 import { revisarSeguimiento } from "./cerebro/reglas.js";
 import { construirInformeDudas } from "./avisos/informeDudas.js";
@@ -145,6 +146,7 @@ export function crearTareas({ almacen, manychat, enviarEmail, log = console }) {
 
   /** Se llama cada 5 minutos. */
   async function cadaCincoMinutos() {
+    if (!licenciaPermite()) return;
     await seguimientosAutomaticos();
     const { dia, hora, diaSemana } = ahoraLocal();
     if (hora >= 9 && almacen.ajuste("ultimo_diario") !== dia) {

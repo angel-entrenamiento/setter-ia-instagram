@@ -28,6 +28,7 @@ Un asistente con IA que contesta los MD de tu Instagram como lo haría un buen s
 - **Probar**: habla con tu setter como si fueras un lead (no se envía nada a nadie).
 - **Conocimiento**: lo que sabe de tu negocio (6 secciones), con un cuestionario que lo redacta con IA.
 - **Enseñar**: en cualquier conversación, dile qué debería haber hecho distinto y te propone el cambio.
+- **Asistente**: un chat para pedir cambios hablando o subir documentos (PDF, textos) de tu negocio; te propone qué añadir y tú lo apruebas.
 - **Ajustes** y **Conectar ManyChat**.
 
 ## Para usuarios de Claude Code

@@ -55,7 +55,10 @@ El panel te enseña una lista de **Primeros pasos**. En orden:
 
 ## Paso 6 · Conectar ManyChat
 En el panel → **Conectar ManyChat** tienes todo para copiar y pegar:
-1. **Respuesta predeterminada de Instagram** → una acción **Petición externa** con la URL, la cabecera `X-Token` y el cuerpo que te indica el panel. Publícala.
+1. ManyChat → **Automatización → Básico → Respuesta predeterminada** (Instagram) → actívala y edita el flujo.
+   - ⚠️ Pulsa el disparador «El usuario envía un mensaje directo» y marca **every time** (cada vez). Si se queda en «once per 24 hours», solo pasa el primer mensaje del día y no llegan los audios.
+   - Borra el bloque de mensaje que trae y pon una **Acción → Solicitud externa**: POST, la URL, la cabecera `X-Token` y el cuerpo que te indica el panel (los campos con «{+} Añadir un campo»: *Id de contacto* y *Última entrada de texto*). La vista previa dirá «JSON no válido»: es normal.
+   - **Guardar** y **Publicar En Vivo**.
 2. Crea las etiquetas **IA_PAUSA**, **IA_ON** y **ALUMNO**.
 3. Desde tu cuenta de pruebas, escribe un MD a tu Instagram. Tu setter contestará en 1-2 minutos. Escribe `#reset` para empezar de cero.
 
@@ -70,9 +73,11 @@ Cuando estés contento con las pruebas: panel → **Inicio** → **Activar para 
 - **Clientes actuales**: etiqueta **ALUMNO** y el setter nunca les contesta.
 - **Si escribes tú en un chat** desde la app de Instagram, el setter lo tiene en cuenta y sigue después sin contradecirte.
 - **Educarlo**: revisa conversaciones en el panel y usa **Enseñar a…** cuando algo no te guste. Es la forma más rápida de que mejore.
+- **Asistente** (pestaña del panel): pídele cambios hablando ("añade mi programa nuevo", "cambia el precio del producto barato a 67") o súbele PDF y textos de tu negocio. Te propone los cambios y tú pulsas **Aplicar**. Si tienes un Word o una presentación, guárdalos antes como PDF. Cuesta unos 0,10 $ por mensaje.
 - **Gasto**: lo ves en el panel (Inicio → Gasto IA) y en console.anthropic.com. Cada vez que cambias el conocimiento, la primera respuesta cuesta algo más (~0,20 $) porque la IA vuelve a leerlo todo.
 
 ## Problemas frecuentes
+- **Solo contesta al primer mensaje / no llegan los audios**: en la Respuesta predeterminada de ManyChat falta marcar **every time**.
 - **No contesta**: ¿estás en modo prueba y escribes desde una cuenta que no está en "Cuentas de prueba"? ¿Está publicada la respuesta predeterminada de ManyChat? Mira el paso "Conectar ManyChat" del panel.
 - **Contesté desde la bandeja de ManyChat y ya no responde**: ManyChat pausa las automatizaciones en ese chat; pulsa «Reanudar».
 - **No me llegan los emails**: el email de Ajustes tiene que ser el mismo con el que creaste Resend. Mira también en spam.

@@ -8,6 +8,8 @@ El usuario es el dueño de un negocio (normalmente no programa). Háblale en esp
 - Marcadores que se sustituyen solos: `{asistente}`, `{dueno}`, `{negocio}`, `{cuenta}`, `{llamada}`, `{producto_barato}`.
 
 ## Educar al setter (lo habitual)
+Si el usuario no usa Claude Code, puede hacer casi todo desde el panel: "Enseñar a…" en cada conversación y el chat "Asistente" (pide cambios o sube PDF/textos y propone cambios en el conocimiento y los ajustes que el usuario aprueba).
+
 1. Comprueba que existe `.env` con `URL_PUBLICA` y `PANEL_CLAVE` (copia de `.env.example`). Si falta, pídeselos al usuario y dile que los escriba él en el archivo (no por el chat).
 2. `npm install` (la primera vez).
 3. `npm run conocimiento -- bajar` → descarga a `mi-conocimiento/` las 6 secciones y `ajustes.json`.

@@ -15,7 +15,7 @@ import { paginaPrivacidad, paginaBorradoDatos } from "./paginasLegales.js";
 import { clienteAnthropic } from "./cerebro/llm.js";
 import { construirPrompt } from "./cerebro/prompt.js";
 import { SECCIONES, usarAlmacenConocimiento, guardarSeccion, restaurarAnterior, todoElConocimiento } from "./cerebro/conocimiento.js";
-import { crearConocimientoConIA, proponerCorreccion, leerPropuesta, aplicarPropuesta } from "./panel/educar.js";
+import { crearConocimientoConIA, proponerCorreccion, leerPropuesta, aplicarPropuesta, conversarConAsistente, historialAsistente } from "./panel/educar.js";
 import * as P from "./panel/paginas.js";
 import { licenciaPermite, estadoLicencia, comprobarLicencia } from "./licencia.js";
 
@@ -35,13 +35,13 @@ export function crearServidor({ almacen, manychat: mc = manychat, enviarEmail: e
   const tareas = crearTareas({ almacen, manychat: mc, enviarEmail: email });
 
   // ---------- Utilidades HTTP ----------
-  const leerCuerpo = (req) =>
+  const leerCuerpo = (req, maximo = 2_000_000) =>
     new Promise((ok, mal) => {
       const trozos = [];
       let tam = 0;
       req.on("data", (c) => {
         tam += c.length;
-        if (tam > 2_000_000) req.destroy(new Error("cuerpo demasiado grande"));
+        if (tam > maximo) req.destroy(new Error("cuerpo demasiado grande"));
         trozos.push(c);
       });
       req.on("end", () => ok(Buffer.concat(trozos)));
@@ -256,11 +256,36 @@ export function crearServidor({ almacen, manychat: mc = manychat, enviarEmail: e
       const propuesta = leerPropuesta(almacen, r[1]);
       if (!propuesta) return responder(res, 404, "Propuesta no encontrada", "text/plain; charset=utf-8");
       if (metodo === "POST" && !propuesta.aplicada) {
-        const indices = (await leerFormulario(req)).getAll("c").map(Number);
-        const resultado = aplicarPropuesta(almacen, propuesta, indices);
+        const form = await leerFormulario(req);
+        const resultado = aplicarPropuesta(almacen, propuesta, form.getAll("c").map(Number), form.getAll("a").map(Number));
         return html(res, P.htmlPropuesta(leerPropuesta(almacen, r[1]), resultado));
       }
       return html(res, P.htmlPropuesta(propuesta));
+    }
+
+    if (ruta === "/panel/asistente") {
+      if (metodo === "POST") {
+        let datos;
+        try {
+          datos = JSON.parse((await leerCuerpo(req, 25_000_000)).toString("utf8") || "{}");
+        } catch {
+          return responder(res, 400, { error: "Los documentos son demasiado grandes o no se han podido leer" });
+        }
+        const archivos = (Array.isArray(datos.archivos) ? datos.archivos : []).filter((a) => a?.nombre && a?.datos).slice(0, 10);
+        try {
+          const r = await conversarConAsistente(almacen, { mensaje: String(datos.mensaje ?? "").trim().slice(0, 20000), archivos });
+          almacen.registrarCoste(r.coste);
+          return responder(res, 200, { ok: true, propuestaId: r.propuestaId });
+        } catch (error) {
+          console.error(`[panel] asistente: ${error.message}`);
+          return responder(res, 500, { error: error.message.slice(0, 300) });
+        }
+      }
+      return html(res, P.htmlAsistente(historialAsistente(almacen)));
+    }
+    if (ruta === "/panel/asistente/borrar" && metodo === "POST") {
+      almacen.fijarAjuste("asistente_historial", "[]");
+      return redirigir(res, "/panel/asistente");
     }
 
     if (ruta === "/panel/ajustes") {

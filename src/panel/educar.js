@@ -1,7 +1,7 @@
 // IA del panel: crear el conocimiento desde un cuestionario y proponer correcciones a partir de una conversación.
 import crypto from "node:crypto";
 import { idModelo } from "../config.js";
-import { negocio, dueno } from "../negocio.js";
+import { negocio, dueno, guardarNegocio, NEGOCIO_POR_DEFECTO } from "../negocio.js";
 import { pedirTexto } from "../cerebro/llm.js";
 import { SECCIONES, leerSeccion, guardarSeccion, plantilla } from "../cerebro/conocimiento.js";
 import { construirPrompt } from "../cerebro/prompt.js";
@@ -171,10 +171,21 @@ export function cambioAplicable(c) {
   return !c.buscar || leerSeccion(c.archivo).includes(c.buscar);
 }
 
-/** Aplica los cambios elegidos (por índice). Devuelve cuántos se aplicaron y cuáles fallaron. */
-export function aplicarPropuesta(almacen, propuesta, indices) {
+/**
+ * Aplica los cambios elegidos (por índice) del conocimiento y, si los hay, de los ajustes.
+ * Devuelve qué se aplicó y qué falló.
+ */
+export function aplicarPropuesta(almacen, propuesta, indices, indicesAjustes = []) {
   const aplicados = [];
   const fallidos = [];
+  const ajustesAplicados = [];
+  const nuevosAjustes = {};
+  (propuesta.ajustes ?? []).forEach((a, i) => {
+    if (!indicesAjustes.includes(i) || !AJUSTES_EDITABLES[a.campo]) return;
+    nuevosAjustes[a.campo] = a.valor;
+    ajustesAplicados.push(i);
+  });
+  if (ajustesAplicados.length) guardarNegocio(almacen, { ...negocio, ...nuevosAjustes });
   propuesta.cambios.forEach((c, i) => {
     if (!indices.includes(i)) return;
     const actual = leerSeccion(c.archivo);
@@ -183,8 +194,146 @@ export function aplicarPropuesta(almacen, propuesta, indices) {
     guardarSeccion(c.archivo, nuevo);
     aplicados.push(i);
   });
-  almacen.fijarAjuste(`propuesta:${propuesta.id}`, JSON.stringify({ ...propuesta, aplicada: new Date().toISOString(), aplicados }));
-  return { aplicados, fallidos };
+  almacen.fijarAjuste(
+    `propuesta:${propuesta.id}`,
+    JSON.stringify({ ...propuesta, aplicada: new Date().toISOString(), aplicados, ajustesAplicados }),
+  );
+  return { aplicados, fallidos, ajustesAplicados };
+}
+
+// ---------- Chat "Asistente": el dueño pide cambios hablando o subiendo documentos ----------
+
+/** Ajustes que el chat puede proponer cambiar (nunca el modo prueba: activarlo para todos es decisión manual). */
+export const AJUSTES_EDITABLES = {
+  nombreAsistente: "Nombre del asistente",
+  nombreDueno: "Nombre del dueño (con quien es la llamada)",
+  nombreNegocio: "Nombre del negocio o marca",
+  cuentaInstagram: "Cuenta de Instagram sin @",
+  aQueSeDedica: "A qué se dedica, en una o dos frases",
+  paisPrincipal: "País principal de los clientes",
+  emailAvisos: "Email para los avisos (debe ser el de la cuenta de Resend)",
+  descripcionLlamada: "Qué es la llamada que propone el asistente",
+  bienvenidaManual: "Texto de la bienvenida manual a seguidores nuevos (vacío si no la usa)",
+  decirVirtualAlPresentarse: "Decir que es un asistente virtual al presentarse (si/no)",
+  exigirDecisor: "Preguntar siempre quién decide el dinero antes de proponer la llamada (si/no)",
+  productoBaratoActivo: "Tiene producto de venta directa por MD (si/no)",
+  productoBaratoNombre: "Nombre del producto de venta directa",
+  productoBaratoImportes: "Importes que puede decir del producto barato, números separados por comas",
+  productoBaratoEnlacePago: "Enlace de pago del producto barato",
+  seguimientosAutomaticos: "Seguimientos automáticos a las 8 h y 24 h (si/no)",
+  emailSeguimientos: "Email diario con los seguimientos de los días 3 y 7 (si/no)",
+  resumenSemanal: "Resumen semanal los lunes (si/no)",
+  informeDudas: "Informe de dudas los jueves (si/no)",
+  listaBlanca: "Cuentas de prueba, sin @, separadas por comas",
+  modelo: "Modelo de IA: opus o sonnet",
+  esfuerzo: "Cuánto piensa: low, medium o high",
+};
+
+const ESQUEMA_ASISTENTE = {
+  type: "object",
+  additionalProperties: false,
+  required: ["respuesta", "resumen_documentos", "cambios", "ajustes"],
+  properties: {
+    respuesta: { type: "string" },
+    resumen_documentos: { type: "string" },
+    cambios: ESQUEMA_PROPUESTA.properties.cambios,
+    ajustes: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["campo", "valor", "motivo"],
+        properties: {
+          campo: { type: "string", enum: Object.keys(AJUSTES_EDITABLES) },
+          valor: { type: "string" },
+          motivo: { type: "string" },
+        },
+      },
+    },
+  },
+};
+
+export const TIPOS_ARCHIVO = { pdf: "application/pdf", txt: "text/plain", md: "text/markdown", csv: "text/csv" };
+const MAX_HISTORIAL = 20;
+
+export function historialAsistente(almacen) {
+  try {
+    return JSON.parse(almacen.ajuste("asistente_historial") ?? "[]");
+  } catch {
+    return [];
+  }
+}
+
+function bloqueArchivo({ nombre, datos }) {
+  const extension = String(nombre).toLowerCase().split(".").pop();
+  const tipo = TIPOS_ARCHIVO[extension];
+  if (!tipo) throw new Error(`«${nombre}»: solo se pueden subir PDF o archivos de texto (.txt, .md, .csv). Si es un Word, guárdalo como PDF.`);
+  if (tipo === "application/pdf") return { type: "document", source: { type: "base64", media_type: tipo, data: datos }, title: nombre };
+  return { type: "text", text: `<documento nombre="${nombre}">\n${Buffer.from(datos, "base64").toString("utf8")}\n</documento>` };
+}
+
+const valorAjuste = (k) => (typeof NEGOCIO_POR_DEFECTO[k] === "boolean" ? (negocio[k] ? "si" : "no") : String(negocio[k] ?? ""));
+
+/**
+ * Un turno del chat del panel. Nunca aplica nada: si propone cambios, crea una propuesta que el dueño revisa y aplica.
+ * @param {{ mensaje: string, archivos?: { nombre: string, datos: string }[] }} entrada (datos en base64)
+ */
+export async function conversarConAsistente(almacen, { mensaje, archivos = [] }) {
+  const historial = historialAsistente(almacen);
+  const bloquesArchivos = archivos.map(bloqueArchivo);
+  const conocimiento = SECCIONES.map(({ archivo }) => `<archivo nombre="${archivo}">\n${leerSeccion(archivo)}\n</archivo>`).join("\n\n");
+  const ajustes = Object.entries(AJUSTES_EDITABLES)
+    .map(([k, d]) => `- ${k} (${d}): ${valorAjuste(k) || "(vacío)"}`)
+    .join("\n");
+  const anteriores = historial.slice(-MAX_HISTORIAL).map((m) => ({
+    role: m.rol === "usuario" ? "user" : "assistant",
+    content: m.rol === "usuario" && m.resumenDocumentos ? `${m.texto}\n[Documentos que adjuntó: ${m.resumenDocumentos}]` : m.texto || "(sin texto)",
+  }));
+  while (anteriores[0]?.role === "assistant") anteriores.shift();
+  const actual = [
+    ...bloquesArchivos,
+    { type: "text", text: `${mensaje || "(sin mensaje: revisa los documentos adjuntos)"}\n\nCONOCIMIENTO ACTUAL\n${conocimiento}\n\nAJUSTES ACTUALES\n${ajustes}` },
+  ];
+  const { texto, coste } = await pedirTexto({
+    model: idModelo("opus"),
+    max_tokens: 16000,
+    esfuerzo: "medium",
+    esquemaJson: ESQUEMA_ASISTENTE,
+    system: `Eres el asistente de configuración del setter de ${dueno()}. Su setter, ${negocio.nombreAsistente}, es una IA que contesta los MD de Instagram de su negocio siguiendo su CONOCIMIENTO (6 secciones en markdown) y sus AJUSTES. ${dueno()} te habla por un chat de su panel para mejorarlo: te cuenta cosas, te pide cambios o te adjunta documentos (PDF o texto) de su negocio.
+
+Tu trabajo:
+- Responder en "respuesta" en español sencillo y cercano, breve, sin tecnicismos. Si propones cambios, resume en 1-3 frases qué cambiarías y dile que los revise y pulse "Aplicar" (tú no aplicas nada).
+- Proponer cambios MÍNIMOS en el conocimiento ("cambios"): sustituciones exactas donde "buscar" es un fragmento que aparece LITERALMENTE en el archivo (cópialo carácter a carácter, lo bastante largo para ser único) y "reemplazar" el texto nuevo. Con "buscar" vacío se añade al final del archivo. Escribe en el estilo del archivo, reglas generales y claras, sin contradecir otras reglas (si contradice una, cambia esa).
+- Proponer cambios de ajustes ("ajustes") solo si lo pide o si es claramente necesario. Para los de si/no usa "si" o "no".
+- Con documentos: extrae lo útil para vender por MD (programas, precios, garantías, avatar, objeciones, casos de éxito, enlaces, tono…) y propón dónde va cada cosa. En "resumen_documentos" resume en pocas líneas qué contenían (se guarda para recordarlo en los siguientes mensajes); si no hay documentos, déjalo vacío.
+- Si falta información para hacer bien un cambio, pregunta en vez de inventar. Nunca inventes precios, garantías, resultados, testimonios ni enlaces: los enlaces solo si te los da o aparecen en sus documentos, copiados exactos.
+- Recuerda las reglas fijas del sistema: el precio del programa principal nunca se dice por MD (solo los importes del producto barato de los ajustes), el asistente solo envía enlaces que estén en el conocimiento, y la llamada se propone preguntando mañana o tarde y se pasa a ${dueno()}.
+- Lo que no puedes hacer: cambiar el código, conectar herramientas nuevas (Calendly, WhatsApp, CRM…), activar el setter para todos (eso se hace en Inicio) ni tocar la licencia. Si te lo piden, dilo con claridad y sugiere hablar con Ángel López, que es quien mantiene el sistema.
+- Si solo es una pregunta o una conversación, responde y deja "cambios" y "ajustes" vacíos.`,
+    mensajes: [...anteriores, { role: "user", content: actual }],
+  });
+  let salida;
+  try {
+    salida = JSON.parse(texto);
+  } catch {
+    throw new Error("La IA no ha devuelto una respuesta válida. Prueba otra vez.");
+  }
+  let propuestaId = null;
+  if (salida.cambios.length || salida.ajustes.length) {
+    propuestaId = crypto.randomBytes(6).toString("hex");
+    const comentario = mensaje || `Documentos: ${archivos.map((a) => a.nombre).join(", ")}`;
+    almacen.fijarAjuste(
+      `propuesta:${propuestaId}`,
+      JSON.stringify({ id: propuestaId, origen: "asistente", comentario, resumen: salida.respuesta, cambios: salida.cambios, ajustes: salida.ajustes, fecha: new Date().toISOString() }),
+    );
+  }
+  const ahora = new Date().toISOString();
+  historial.push(
+    { rol: "usuario", texto: mensaje, archivos: archivos.map((a) => a.nombre), resumenDocumentos: salida.resumen_documentos || "", fecha: ahora },
+    { rol: "asistente", texto: salida.respuesta, propuestaId, fecha: ahora },
+  );
+  almacen.fijarAjuste("asistente_historial", JSON.stringify(historial.slice(-60)));
+  return { ...salida, propuestaId, coste };
 }
 
 /** Prompt completo actual (para la vista "ver el prompt" del panel). */

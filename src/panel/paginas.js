@@ -4,7 +4,7 @@ import { negocio } from "../negocio.js";
 import { SECCIONES, leerSeccion, huecosPorRellenar, hayAnterior, fechaSeccion, plantilla } from "../cerebro/conocimiento.js";
 import { fichaEnTexto, nombreAutor, nombresMetricas } from "../avisos/emails.js";
 import { enListaBlanca } from "../motor.js";
-import { PREGUNTAS, cambioAplicable } from "./educar.js";
+import { PREGUNTAS, cambioAplicable, AJUSTES_EDITABLES } from "./educar.js";
 
 export const esc = (t) =>
   String(t ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -45,6 +45,7 @@ export function pagina(titulo, cuerpo, activa = "") {
   const enlaces = [
     ["/panel", "Inicio"],
     ["/panel/probar", "Probar"],
+    ["/panel/asistente", "Asistente"],
     ["/panel/conocimiento", "Conocimiento"],
     ["/panel/ajustes", "Ajustes"],
     ["/panel/manychat", "Conectar ManyChat"],
@@ -266,14 +267,22 @@ export function htmlPropuesta(p, resultado = null) {
 ${c.buscar ? `<b>Quitar:</b><pre>${esc(c.buscar)}</pre>` : "<b>Añadir al final:</b>"}${c.buscar ? "<b>Poner:</b>" : ""}<pre>${esc(c.reemplazar)}</pre></div>`;
     })
     .join("");
-  const vuelta = p.convId?.startsWith("panel:") ? "/panel/probar" : `/panel/c/${encodeURIComponent(p.convId)}`;
+  const vuelta = p.origen === "asistente" ? "/panel/asistente" : p.convId?.startsWith("panel:") ? "/panel/probar" : `/panel/c/${encodeURIComponent(p.convId)}`;
+  const ajustes = (p.ajustes ?? [])
+    .map((a, i) => {
+      const hecho = resultado?.ajustesAplicados?.includes(i) || p.ajustesAplicados?.includes(i);
+      return `<div class="tarjeta"><label class="fila" style="margin:0">${
+        p.aplicada ? (hecho ? "✅" : "—") : `<input type="checkbox" name="a" value="${i}" checked>`
+      } Ajuste: ${esc(AJUSTES_EDITABLES[a.campo] ?? a.campo)}</label><p class="ayuda">${esc(a.motivo)}</p><b>Nuevo valor:</b><pre>${esc(a.valor || "(vacío)")}</pre></div>`;
+    })
+    .join("");
   return pagina(
     "Corrección propuesta",
-    `<p><a href="${vuelta}">← Volver a la conversación</a></p><h1>🎓 Corrección propuesta</h1>
+    `<p><a href="${vuelta}">← Volver</a></p><h1>${p.origen === "asistente" ? "🤖 Cambios propuestos" : "🎓 Corrección propuesta"}</h1>
 <div class="tarjeta"><b>Lo que dijiste:</b> ${esc(p.comentario)}<br><b>Lo que propone la IA:</b> ${esc(p.resumen)}</div>
-${resultado ? `<div class="tarjeta ok">✅ ${resultado.aplicados.length} cambio(s) aplicado(s).${resultado.fallidos.length ? ` ${resultado.fallidos.length} no se pudo aplicar.` : ""} <a href="/panel/probar">Probar otra vez</a></div>` : ""}
-<form method="post" action="/panel/propuesta/${esc(p.id)}">${cambios || "<p>La IA no ha propuesto cambios. Prueba a explicarlo con otras palabras.</p>"}
-${p.aplicada || !p.cambios.length ? "" : '<button class="principal">Aplicar los cambios marcados</button>'}</form>
+${resultado ? `<div class="tarjeta ok">✅ ${resultado.aplicados.length + (resultado.ajustesAplicados?.length ?? 0)} cambio(s) aplicado(s).${resultado.fallidos.length ? ` ${resultado.fallidos.length} no se pudo aplicar.` : ""} <a href="/panel/probar">Probar otra vez</a></div>` : ""}
+<form method="post" action="/panel/propuesta/${esc(p.id)}">${cambios + ajustes || "<p>La IA no ha propuesto cambios. Prueba a explicarlo con otras palabras.</p>"}
+${p.aplicada || !(p.cambios.length || p.ajustes?.length) ? "" : '<button class="principal">Aplicar los cambios marcados</button>'}</form>
 <p class="ayuda">Si te arrepientes, en Conocimiento cada sección tiene "Deshacer el último cambio".</p>`,
     "/panel/conocimiento",
   );
@@ -353,11 +362,12 @@ export function htmlManychat(almacen) {
     `<h1>Conectar ManyChat</h1>
 <div class="tarjeta">${recibido ? `✅ ManyChat ya está conectado (primer mensaje recibido el ${esc(fecha(recibido))}).` : "⬜ Todavía no ha llegado ningún mensaje desde ManyChat."}</div>
 <div class="tarjeta"><h2 style="margin-top:0">1. Que ManyChat le pase los mensajes a ${asistente()}</h2>
-<ol class="pasos"><li>En ManyChat: <b>Automatización → Respuesta predeterminada (Default Reply)</b> de Instagram → actívala y edita su flujo.</li>
-<li>Añade una acción <b>Petición externa (External Request)</b> con:
+<ol class="pasos"><li>En ManyChat: <b>Automatización → Básico → Respuesta predeterminada (Default Reply)</b> de Instagram → actívala y edita su flujo.</li>
+<li>⚠️ Pulsa el disparador «El usuario envía un mensaje directo» y marca <b>every time</b> (cada vez). Si se queda en «once per 24 hours», solo pasará el primer mensaje del día y no te llegarán los audios.</li>
+<li>Borra el bloque de mensaje que trae y añade una <b>Acción → Solicitud externa (External Request)</b> con:
 <ul><li>Método: <b>POST</b></li><li>URL: <span class="copiar">${esc(url)}</span></li>
 <li>Cabecera (Headers): nombre <span class="copiar">X-Token</span> · valor <span class="copiar">${esc(config.tokenManychatEntrada)}</span></li>
-<li>Cuerpo (Body), tipo JSON: <span class="copiar">${esc(cuerpo)}</span><br><span class="ayuda">Los {{…}} se insertan con el botón de campos de ManyChat: «User Id» y «Last Text Input».</span></li></ul></li>
+<li>Cuerpo (Body), tipo JSON: <span class="copiar">${esc(cuerpo)}</span><br><span class="ayuda">Los {{…}} se insertan con el botón «{+} Añadir un campo» de ManyChat: «Id de contacto» (User Id) y «Última entrada de texto» (Last Text Input). La vista previa dirá «JSON no válido / variables no definidas»: es normal.</span></li></ul></li>
 <li>Que el flujo <b>no envíe ningún mensaje</b>: solo la petición externa. Publica el flujo (Live).</li>
 <li>Si ya usas otras automatizaciones de palabras clave, siguen funcionando: la respuesta predeterminada solo salta cuando no salta ninguna otra.</li></ol></div>
 <div class="tarjeta"><h2 style="margin-top:0">2. Etiquetas de control</h2>
@@ -376,6 +386,41 @@ export function htmlManychat(almacen) {
 <ul><li>POST <span class="copiar">${esc(config.urlPublica)}/manychat/contacto</span></li><li>Misma cabecera X-Token</li><li>Cuerpo: <span class="copiar">${esc(cuerpoRecurso)}</span></li></ul>
 <p class="ayuda">Tiene que ser después del botón: Instagram solo deja escribir a quien ha interactuado en las últimas 24 h.</p></details>`,
     "/panel/manychat",
+  );
+}
+
+// ---------- Chat Asistente ----------
+
+const formatoTexto = (t) => esc(t).replace(/\n/g, "<br>");
+
+export function htmlAsistente(historial) {
+  const mensajes = historial
+    .map((m) =>
+      m.rol === "usuario"
+        ? `<div class="lead" style="margin:10px 0"><small>${esc(fecha(m.fecha))}</small> <b>Tú:</b> ${formatoTexto(m.texto)}${m.archivos?.length ? `<br><small>📎 ${esc(m.archivos.join(", "))}</small>` : ""}</div>`
+        : `<div class="bot" style="margin:10px 0"><b>Asistente:</b> ${formatoTexto(m.texto)}${m.propuestaId ? `<br><a class="boton principal" href="/panel/propuesta/${esc(m.propuestaId)}">Ver y aplicar los cambios propuestos</a>` : ""}</div>`,
+    )
+    .join("");
+  return pagina(
+    "Asistente",
+    `<h1>🤖 Asistente de configuración</h1>
+<p class="ayuda">Pídele cambios hablando ("añade mi programa nuevo de 6 meses", "que suene más cercano", "cambia el precio del producto barato a 67") o sube documentos de tu negocio (PDF, .txt, .md) para que saque lo útil. Nunca cambia nada solo: te propone los cambios y tú decides si aplicarlos. Usa tu clave de Anthropic (~0,10 $ por mensaje, algo más con documentos largos).</p>
+<div class="tarjeta chat" id="chat">${mensajes || '<span class="ayuda">Todavía no habéis hablado. Prueba, por ejemplo: "Te subo el PDF de mi programa, añade lo importante".</span>'}</div>
+<form id="formAsistente" class="tarjeta"><label for="mensaje">Tu mensaje</label><textarea id="mensaje" name="mensaje"></textarea>
+<label for="archivos">Documentos (opcional)</label><p class="ayuda">PDF de hasta 100 páginas o archivos de texto. Máximo 15 MB en total. Si es un Word o una presentación, guárdalo antes como PDF.</p>
+<input type="file" id="archivos" multiple accept=".pdf,.txt,.md,.csv">
+<p><button class="principal" id="enviar">Enviar</button> <span id="estado" class="ayuda"></span></p></form>
+<form method="post" action="/panel/asistente/borrar"><button onclick="return confirm('¿Borrar el historial de este chat? El conocimiento no se toca.')">Borrar el historial del chat</button></form>
+<script>
+const f=document.getElementById("formAsistente"),b=document.getElementById("enviar"),e=document.getElementById("estado");
+document.getElementById("chat").scrollTop=1e9;
+const leer=(a)=>new Promise((ok,mal)=>{const r=new FileReader();r.onload=()=>ok({nombre:a.name,datos:String(r.result).split(",")[1]});r.onerror=mal;r.readAsDataURL(a)});
+f.addEventListener("submit",async(ev)=>{ev.preventDefault();const mensaje=document.getElementById("mensaje").value.trim();const lista=[...document.getElementById("archivos").files];
+if(!mensaje&&!lista.length)return;if(lista.reduce((n,a)=>n+a.size,0)>15e6){e.textContent="Los documentos pesan más de 15 MB.";return}
+b.disabled=true;e.textContent=lista.length?"Leyendo tus documentos… (puede tardar 1-2 minutos)":"Pensando…";
+try{const archivos=await Promise.all(lista.map(leer));const r=await fetch("/panel/asistente",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({mensaje,archivos})});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||("Error "+r.status));location.reload()}catch(x){e.textContent="No se ha podido enviar: "+x.message;b.disabled=false}});
+</script>`,
+    "/panel/asistente",
   );
 }
 

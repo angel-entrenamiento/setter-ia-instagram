@@ -45,6 +45,7 @@ Tu **clave de licencia** personal (empieza por `SETTER-`): te la da Ángel Lópe
 4. Pulsa **Deploy** y espera 2-3 minutos.
 5. Abre tu servicio → **Settings → Networking**: ahí está tu dirección (algo como `https://setter-production-xxxx.up.railway.app`). Si no hay ninguna, pulsa **Generate Domain**.
 6. Abre esa dirección y añade `/panel` al final. Usuario: **admin** · Contraseña: la de `PANEL_CLAVE`.
+7. **Para que se actualice solo** (recomendado, 1 minuto): en Railway abre tu proyecto → **Settings → Tokens** → crea un token (nombre `actualizaciones`, entorno `production`) y cópialo. Después, en tu servicio → **Variables** → **New Variable**: `TOKEN_RAILWAY` = ese token. Así, cuando Ángel publique mejoras, tu setter las instala solo de madrugada (o al momento con el botón **Actualizar ahora** de Ajustes).
 
 ## Paso 5 · Configurarlo desde el panel
 El panel te enseña una lista de **Primeros pasos**. En orden:
@@ -75,6 +76,9 @@ Cuando estés contento con las pruebas: panel → **Inicio** → **Activar para 
 - **Educarlo**: revisa conversaciones en el panel y usa **Enseñar a…** cuando algo no te guste. Es la forma más rápida de que mejore.
 - **Asistente** (pestaña del panel): pídele cambios hablando ("añade mi programa nuevo", "cambia el precio del producto barato a 67") o súbele PDF y textos de tu negocio. Te propone los cambios y tú pulsas **Aplicar**. Si tienes un Word o una presentación, guárdalos antes como PDF. Cuesta unos 0,10 $ por mensaje.
 - **Gasto**: lo ves en el panel (Inicio → Gasto IA) y en console.anthropic.com. Cada vez que cambias el conocimiento, la primera respuesta cuesta algo más (~0,20 $) porque la IA vuelve a leerlo todo.
+
+## Actualizaciones
+En **Ajustes → Actualizaciones** ves si tienes la última versión. Con `TOKEN_RAILWAY` puesto y la casilla de actualización automática marcada, las versiones nuevas se instalan solas entre las 3:00 y las 5:00. Tu conocimiento, tus ajustes y tus conversaciones no se tocan.
 
 ## Problemas frecuentes
 - **Solo contesta al primer mensaje / no llegan los audios**: en la Respuesta predeterminada de ManyChat falta marcar **every time**.

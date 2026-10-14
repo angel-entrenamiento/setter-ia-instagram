@@ -24,5 +24,5 @@ El software es de Ángel López (ver LICENSE). `src/licencia.js` comprueba la cl
 
 ## Cambiar código
 - `npm test` debe pasar siempre (no gasta IA).
-- El servidor se actualiza solo en Railway cuando cambia su repositorio de GitHub. Si el usuario instaló desde la plantilla sin repositorio propio, explícale que para cambiar código tiene que crear su copia (Railway → servicio → Settings → "Eject" o conectar su propio repo).
+- Las instalaciones apuntan al repositorio de Ángel. `src/actualizacion.js` instala las versiones nuevas (de madrugada o con "Actualizar ahora" en Ajustes) si existe la variable `TOKEN_RAILWAY`. Si el usuario quiere código propio, tiene que conectar su servicio a su propia copia del repositorio (y dejará de recibir las mejoras de Ángel): avísale antes.
 - No subas nunca `.env`, `datos/` ni `mi-conocimiento/` (están en `.gitignore`).

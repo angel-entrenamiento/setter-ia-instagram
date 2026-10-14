@@ -18,6 +18,7 @@ import { SECCIONES, usarAlmacenConocimiento, guardarSeccion, restaurarAnterior, 
 import { crearConocimientoConIA, proponerCorreccion, leerPropuesta, aplicarPropuesta, conversarConAsistente, historialAsistente } from "./panel/educar.js";
 import * as P from "./panel/paginas.js";
 import { licenciaPermite, estadoLicencia, comprobarLicencia } from "./licencia.js";
+import { actualizarAhora, comprobarUltimaVersion } from "./actualizacion.js";
 
 const ID_PRUEBA = "panel:prueba";
 
@@ -294,6 +295,19 @@ export function crearServidor({ almacen, manychat: mc = manychat, enviarEmail: e
         return redirigir(res, "/panel/ajustes?m=ajustes");
       }
       return html(res, P.htmlAjustes(aviso));
+    }
+    if (ruta === "/panel/actualizar" && metodo === "POST") {
+      const accion = (await leerFormulario(req)).get("accion");
+      if (accion === "comprobar") {
+        await comprobarUltimaVersion();
+        return redirigir(res, "/panel/ajustes#actualizaciones");
+      }
+      try {
+        await actualizarAhora(almacen);
+        return html(res, P.htmlAjustes("🔄 Actualización en marcha. Tu setter se reiniciará solo en 2-3 minutos; luego recarga esta página."));
+      } catch (error) {
+        return html(res, P.htmlAjustes("", null, `No se ha podido actualizar: ${error.message}`));
+      }
     }
     if (ruta === "/panel/comprobar" && metodo === "POST") return html(res, P.htmlAjustes("", await comprobarClaves()));
     if (ruta === "/panel/manychat") return html(res, P.htmlManychat(almacen));

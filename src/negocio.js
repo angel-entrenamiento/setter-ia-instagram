@@ -30,6 +30,7 @@ export const NEGOCIO_POR_DEFECTO = Object.freeze({
   emailSeguimientos: true,
   resumenSemanal: true,
   informeDudas: true,
+  actualizacionesAutomaticas: true,
 });
 
 /** Valores actuales (se rellenan con cargarNegocio al arrancar). */

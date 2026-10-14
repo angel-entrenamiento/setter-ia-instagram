@@ -3,6 +3,8 @@ import { config } from "./config.js";
 import { negocio } from "./negocio.js";
 import { crearServidor, AlmacenSqlite } from "./servidor.js";
 import { comprobarLicencia, estadoLicencia } from "./licencia.js";
+import { revisarActualizaciones } from "./actualizacion.js";
+import { ahoraLocal } from "./tareas.js";
 
 const faltan = [
   ["LICENCIA", process.env.LICENCIA],
@@ -33,6 +35,14 @@ setInterval(() => {
   const hace = Date.now() - Date.parse(e.comprobadaAt ?? 0);
   if (hace > 6 * 3600000 || (e.estado !== "ok" && hace > 5 * 60000)) revisarLicencia().catch(() => {});
 }, 60000);
+
+// Actualizaciones: cada 5 min mira si toca (comprueba GitHub cada 6 h; instala de madrugada si está activado)
+const actualizar = () =>
+  revisarActualizaciones(almacen, { automatica: negocio.actualizacionesAutomaticas, hora: ahoraLocal().hora }).catch((e) =>
+    console.error(`[actualizacion] ${e.message}`),
+  );
+actualizar();
+setInterval(actualizar, 5 * 60000);
 
 // Cada 3 s se lanzan las conversaciones a las que les toca responder (cada una por separado)
 setInterval(() => {

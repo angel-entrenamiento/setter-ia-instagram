@@ -224,6 +224,7 @@ export const AJUSTES_EDITABLES = {
   emailSeguimientos: "Email diario con los seguimientos de los días 3 y 7 (si/no)",
   resumenSemanal: "Resumen semanal los lunes (si/no)",
   informeDudas: "Informe de dudas los jueves (si/no)",
+  actualizacionesAutomaticas: "Instalar solas las versiones nuevas de madrugada (si/no)",
   listaBlanca: "Cuentas de prueba, sin @, separadas por comas",
   modelo: "Modelo de IA: opus o sonnet",
   esfuerzo: "Cuánto piensa: low, medium o high",

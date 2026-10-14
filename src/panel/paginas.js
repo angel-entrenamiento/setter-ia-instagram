@@ -5,6 +5,7 @@ import { SECCIONES, leerSeccion, huecosPorRellenar, hayAnterior, fechaSeccion, p
 import { fichaEnTexto, nombreAutor, nombresMetricas } from "../avisos/emails.js";
 import { enListaBlanca } from "../motor.js";
 import { PREGUNTAS, cambioAplicable, AJUSTES_EDITABLES } from "./educar.js";
+import { estadoActualizacion, corta } from "../actualizacion.js";
 
 export const esc = (t) =>
   String(t ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -301,11 +302,30 @@ const campoOpciones = (k, titulo, opciones, ayuda = "") =>
     .map(([v, n]) => `<option value="${v}" ${String(negocio[k]) === v ? "selected" : ""}>${n}</option>`)
     .join("")}</select>`;
 
-export function htmlAjustes(mensaje = "", comprobacion = null) {
+function bloqueActualizaciones() {
+  const e = estadoActualizacion();
+  const estadoTexto = !e.actual
+    ? "No se sabe qué versión está instalada (solo se ve dentro de Railway)."
+    : e.hayNueva
+      ? `🆕 Hay una versión nueva (${corta(e.ultima)}). Tienes la ${corta(e.actual)}.`
+      : e.ultima
+        ? `✅ Tienes la última versión (${corta(e.actual)}).`
+        : `Versión instalada: ${corta(e.actual)}.`;
+  return `<div class="tarjeta" id="actualizaciones"><h2 style="margin-top:0">Actualizaciones</h2>
+<p>${esc(estadoTexto)}${e.error ? `<br><span class="mal">${esc(e.error)}</span>` : ""}</p>
+${
+  e.configurada
+    ? `<form method="post" action="/panel/actualizar" class="fila"><button class="principal" name="accion" value="actualizar" onclick="return confirm('Tu setter se reiniciará en 2-3 minutos con la última versión. No pierdes nada de tu configuración. ¿Seguir?')">Actualizar ahora</button><button name="accion" value="comprobar">Comprobar si hay versión nueva</button></form>`
+    : `<p class="ayuda">Para que se actualice solo (o con un botón), añade una vez la variable <span class="copiar">TOKEN_RAILWAY</span>: en Railway, abre tu proyecto → <b>Settings → Tokens</b> → crea un token (nombre «actualizaciones», entorno «production»), cópialo y pégalo en tu servicio → <b>Variables</b> → <span class="copiar">TOKEN_RAILWAY</span>.</p>`
+}
+<p class="ayuda">Con la actualización automática activada (casilla de arriba, en «Pruebas e IA»), las versiones nuevas se instalan solas entre las 3:00 y las 5:00. Tu conocimiento, tus ajustes y tus conversaciones no se tocan.</p></div>`;
+}
+
+export function htmlAjustes(mensaje = "", comprobacion = null, error = "") {
   const clave = (nombre, puesta) => `<li>${puesta ? "✅" : "⬜"} <span class="copiar">${nombre}</span></li>`;
   return pagina(
     "Ajustes",
-    `<h1>Ajustes</h1>${mensaje ? `<div class="tarjeta ok">${mensaje}</div>` : ""}
+    `<h1>Ajustes</h1>${mensaje ? `<div class="tarjeta ok">${mensaje}</div>` : ""}${error ? `<div class="tarjeta mal">${esc(error)}</div>` : ""}
 <form method="post">
 <div class="tarjeta"><h2 style="margin-top:0">Tu asistente y tu negocio</h2>
 ${campoTexto("nombreAsistente", "Nombre del asistente", "Cómo se presenta a los leads. Ej.: Alex, Lucía…")}
@@ -339,9 +359,11 @@ ${campoTexto("productoBaratoEnlacePago", "Enlace de pago", "", "url")}
 ${campoTexto("listaBlanca", "Cuentas de prueba (sin @, separadas por comas)", "En modo prueba solo responde a estas cuentas. Usa una cuenta secundaria tuya. Desde ellas puedes escribir #reset para empezar de cero.")}
 ${campoOpciones("modelo", "Modelo de IA", [["opus", "Claude Opus (recomendado, ~0,03 $ por respuesta)"], ["sonnet", "Claude Sonnet (más barato, ~0,02 $ por respuesta)"]])}
 ${campoOpciones("esfuerzo", "Cuánto piensa antes de responder", [["medium", "Normal (recomendado)"], ["low", "Poco (más rápido y barato)"], ["high", "Mucho (más lento y caro)"]])}
+${campoSiNo("actualizacionesAutomaticas", "Instalar solo las versiones nuevas de madrugada (3:00-5:00)", "Recomendado. Necesita la variable TOKEN_RAILWAY (ver Actualizaciones, más abajo).")}
 <input type="hidden" name="modoPrueba" value="${negocio.modoPrueba ? "si" : "no"}">
 </div>
 <p><button class="principal">Guardar ajustes</button></p></form>
+${bloqueActualizaciones()}
 <div class="tarjeta" id="claves"><h2 style="margin-top:0">Claves (se ponen en Railway → tu servicio → Variables)</h2>
 <ul>${clave("LICENCIA", process.env.LICENCIA)}${clave("ANTHROPIC_API_KEY", process.env.ANTHROPIC_API_KEY)}${clave("MANYCHAT_API_KEY", config.manychatApiKey)}${clave("RESEND_API_KEY", config.resendApiKey || config.gmailContrasena)}${clave("PANEL_CLAVE", config.panelClave)}</ul>
 <form method="post" action="/panel/comprobar"><button data-espera="Comprobando…">Comprobar que las claves funcionan (envía un email de prueba)</button></form>

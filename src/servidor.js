@@ -11,6 +11,7 @@ import { crearOrquestador } from "./orquestador.js";
 import { crearTareas } from "./tareas.js";
 import { procesarEvento, aplicarEtiqueta, reiniciar, enListaBlanca } from "./motor.js";
 import { firmaCorrecta } from "./utilidades/enlaces.js";
+import { parsearCuerpoManychat } from "./utilidades/cuerpoManychat.js";
 import { paginaPrivacidad, paginaBorradoDatos } from "./paginasLegales.js";
 import { clienteAnthropic } from "./cerebro/llm.js";
 import { construirPrompt } from "./cerebro/prompt.js";
@@ -373,12 +374,19 @@ export function crearServidor({ almacen, manychat: mc = manychat, enviarEmail: e
         console.warn(`[manychat] petición rechazada: token ${token ? "incorrecto" : "ausente"}`);
         return responder(res, 403, { error: "token" });
       }
-      let datos = {};
       const crudo = (await leerCuerpo(req)).toString("utf8");
-      try {
-        datos = JSON.parse(crudo || "{}");
-      } catch {
-        console.warn(`[manychat] petición rechazada: JSON no válido (${crudo.length} caracteres)`);
+      const datos = parsearCuerpoManychat(crudo); // tolera saltos de línea y comillas sin escapar
+      if (!datos) {
+        console.warn(`[manychat] petición rechazada: no se puede leer (${crudo.length} caracteres)`);
+        // Red de seguridad: que ningún mensaje se pierda en silencio
+        Promise.resolve(
+          email({
+            etiqueta: "ERROR",
+            para: config.emailAvisos,
+            asunto: `[ERROR] ${negocio.nombreAsistente} no ha podido leer un mensaje de ManyChat`,
+            cuerpo: `Ha llegado un mensaje que ${negocio.nombreAsistente} no ha podido leer y NO ha contestado. Búscalo en ManyChat y contesta tú.\nRevisa también en el panel → «Conectar ManyChat» que el cuerpo de la Solicitud externa está como allí se indica (con «Codificar a JSON»).\n\nLo que llegó:\n${crudo.slice(0, 2000)}`,
+          }),
+        ).catch(() => {});
         return responder(res, 400, { error: "json" });
       }
       if (!datos.subscriber_id) {
@@ -401,12 +409,8 @@ export function crearServidor({ almacen, manychat: mc = manychat, enviarEmail: e
     if (ruta === "/manychat/contacto" && req.method === "POST") {
       const token = req.headers["x-token"] ?? url.searchParams.get("token");
       if (!config.tokenManychatEntrada || token !== config.tokenManychatEntrada) return responder(res, 403, { error: "token" });
-      let datos = {};
-      try {
-        datos = JSON.parse((await leerCuerpo(req)).toString("utf8") || "{}");
-      } catch {
-        return responder(res, 400, { error: "json" });
-      }
+      const datos = parsearCuerpoManychat((await leerCuerpo(req)).toString("utf8"));
+      if (!datos) return responder(res, 400, { error: "json" });
       responder(res, 200, { ok: true }); // ManyChat corta a los 10 s: contestamos ya
       orq
         .registrarContactoManychat({

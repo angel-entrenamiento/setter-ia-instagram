@@ -59,6 +59,7 @@ En el panel → **Conectar ManyChat** tienes todo para copiar y pegar:
 1. ManyChat → **Automatización → Básico → Respuesta predeterminada** (Instagram) → actívala y edita el flujo.
    - ⚠️ Pulsa el disparador «El usuario envía un mensaje directo» y marca **every time** (cada vez). Si se queda en «once per 24 hours», solo pasa el primer mensaje del día y no llegan los audios.
    - Borra el bloque de mensaje que trae y pon una **Acción → Solicitud externa**: POST, la URL, la cabecera `X-Token` y el cuerpo que te indica el panel (los campos con «{+} Añadir un campo»: *Id de contacto* y *Última entrada de texto*). La vista previa dirá «JSON no válido»: es normal.
+   - ⚠️ **«Última entrada de texto» va sin comillas alrededor**, y tienes que hacer clic encima de su etiqueta azul y marcar **«Codificar a JSON»**. Si no, los mensajes con varias líneas o con comillas no llegan a tu setter.
    - **Guardar** y **Publicar En Vivo**.
 2. Crea las etiquetas **IA_PAUSA**, **IA_ON** y **ALUMNO**.
 3. Desde tu cuenta de pruebas, escribe un MD a tu Instagram. Tu setter contestará en 1-2 minutos. Escribe `#reset` para empezar de cero.
@@ -81,6 +82,7 @@ Cuando estés contento con las pruebas: panel → **Inicio** → **Activar para 
 En **Ajustes → Actualizaciones** ves si tienes la última versión. Con `TOKEN_RAILWAY` puesto y la casilla de actualización automática marcada, las versiones nuevas se instalan solas entre las 3:00 y las 5:00. Tu conocimiento, tus ajustes y tus conversaciones no se tocan.
 
 ## Problemas frecuentes
+- **No contesta a mensajes largos, con varias líneas o con comillas**: en la Solicitud externa de ManyChat, quita las comillas de alrededor de «Última entrada de texto» y marca «Codificar a JSON» al hacer clic en ella.
 - **Solo contesta al primer mensaje / no llegan los audios**: en la Respuesta predeterminada de ManyChat falta marcar **every time**.
 - **No contesta**: ¿estás en modo prueba y escribes desde una cuenta que no está en "Cuentas de prueba"? ¿Está publicada la respuesta predeterminada de ManyChat? Mira el paso "Conectar ManyChat" del panel.
 - **Contesté desde la bandeja de ManyChat y ya no responde**: ManyChat pausa las automatizaciones en ese chat; pulsa «Reanudar».

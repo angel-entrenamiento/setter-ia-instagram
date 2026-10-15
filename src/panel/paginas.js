@@ -376,7 +376,7 @@ ${comprobacion ? `<ul>${comprobacion.map(([ok, t]) => `<li class="${ok ? "ok" : 
 
 export function htmlManychat(almacen) {
   const url = `${config.urlPublica}/manychat/mensaje`;
-  const cuerpo = `{"subscriber_id": "{{user_id}}", "texto": "{{last_input_text}}"}`;
+  const cuerpo = `{"subscriber_id": "{{user_id}}", "texto": {{last_input_text}}}`;
   const cuerpoRecurso = `{"subscriber_id": "{{user_id}}", "origen": "recurso", "recurso": "NOMBRE DEL RECURSO"}`;
   const recibido = almacen.ajuste("manychat_recibido");
   return pagina(
@@ -389,7 +389,8 @@ export function htmlManychat(almacen) {
 <li>Borra el bloque de mensaje que trae y añade una <b>Acción → Solicitud externa (External Request)</b> con:
 <ul><li>Método: <b>POST</b></li><li>URL: <span class="copiar">${esc(url)}</span></li>
 <li>Cabecera (Headers): nombre <span class="copiar">X-Token</span> · valor <span class="copiar">${esc(config.tokenManychatEntrada)}</span></li>
-<li>Cuerpo (Body), tipo JSON: <span class="copiar">${esc(cuerpo)}</span><br><span class="ayuda">Los {{…}} se insertan con el botón «{+} Añadir un campo» de ManyChat: «Id de contacto» (User Id) y «Última entrada de texto» (Last Text Input). La vista previa dirá «JSON no válido / variables no definidas»: es normal.</span></li></ul></li>
+<li>Cuerpo (Body), tipo JSON: <span class="copiar">${esc(cuerpo)}</span><br><span class="ayuda">Los {{…}} se insertan con el botón «{+} Añadir un campo» de ManyChat: «Id de contacto» (User Id) y «Última entrada de texto» (Last Text Input). Fíjate: <b>«Última entrada de texto» va SIN comillas</b> alrededor.</span></li>
+<li>⚠️ <b>Haz clic encima de la etiqueta azul «Última entrada de texto» y marca «Codificar a JSON»</b> (Encode to JSON). Sin esto, los mensajes con varias líneas o comillas no llegan. La vista previa dirá «JSON no válido / variables no definidas»: es normal.</li></ul></li>
 <li>Que el flujo <b>no envíe ningún mensaje</b>: solo la petición externa. Publica el flujo (Live).</li>
 <li>Si ya usas otras automatizaciones de palabras clave, siguen funcionando: la respuesta predeterminada solo salta cuando no salta ninguna otra.</li></ol></div>
 <div class="tarjeta"><h2 style="margin-top:0">2. Etiquetas de control</h2>

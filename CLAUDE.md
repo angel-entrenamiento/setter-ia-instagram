@@ -27,3 +27,4 @@ El software es de Ángel López (ver LICENSE). `src/licencia.js` comprueba la cl
 - `npm test` debe pasar siempre (no gasta IA).
 - Las instalaciones apuntan al repositorio de Ángel. `src/actualizacion.js` instala las versiones nuevas (de madrugada o con "Actualizar ahora" en Ajustes) si existe la variable `TOKEN_RAILWAY`. Si el usuario quiere código propio, tiene que conectar su servicio a su propia copia del repositorio (y dejará de recibir las mejoras de Ángel): avísale antes.
 - No subas nunca `.env`, `datos/` ni `mi-conocimiento/` (están en `.gitignore`).
+- `NOVEDADES.md`: una entrada por versión (`## AAAA-MM-DD · Título` + lista en lenguaje sencillo, la más nueva arriba). Los setters avisan por email a su dueño de las entradas que aún no tienen. Cambios internos sin efecto para el usuario no necesitan entrada (y así no se avisa).

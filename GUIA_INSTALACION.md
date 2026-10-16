@@ -95,7 +95,7 @@ Lo que rellena tu asistente solo:
 Las opciones de los desplegables de Entrevistas (Procedencia, Servicio, Qué le ocurre…) se cambian en **Ajustes → CRM: opciones de los desplegables**, una por línea. «Qué le ocurre» empieza vacía: pon los problemas típicos de tus clientes.
 
 ## Actualizaciones
-En **Ajustes → Actualizaciones** ves si tienes la última versión. Con `TOKEN_RAILWAY` puesto y la casilla de actualización automática marcada, las versiones nuevas se instalan solas entre las 3:00 y las 5:00. Tu conocimiento, tus ajustes y tus conversaciones no se tocan.
+Cuando Ángel publica una mejora, **te llega un email** con lo que trae y cómo instalarla (puedes desactivarlo en Ajustes → Avisos). La lista completa está en [NOVEDADES.md](NOVEDADES.md). En **Ajustes → Actualizaciones** ves si tienes la última versión y qué trae la nueva. Con `TOKEN_RAILWAY` puesto y la casilla de actualización automática marcada, las versiones nuevas se instalan solas entre las 3:00 y las 5:00. Tu conocimiento, tus ajustes y tus conversaciones no se tocan.
 
 ## Problemas frecuentes
 - **No contesta a mensajes largos, con varias líneas o con comillas**: en la Solicitud externa de ManyChat, quita las comillas de alrededor de «Última entrada de texto» y marca «Codificar a JSON» al hacer clic en ella.

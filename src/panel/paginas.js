@@ -328,6 +328,13 @@ function bloqueActualizaciones() {
   return `<div class="tarjeta" id="actualizaciones"><h2 style="margin-top:0">Actualizaciones</h2>
 <p>${esc(estadoTexto)}${e.error ? `<br><span class="mal">${esc(e.error)}</span>` : ""}</p>
 ${
+  e.hayNueva && e.novedades.length
+    ? `<details open><summary><b>Qué trae la versión nueva</b></summary>${e.novedades
+        .map((n) => `<p><b>${esc(n.titulo)}</b>${n.fecha ? ` <span class="ayuda">(${esc(n.fecha)})</span>` : ""}</p><pre>${esc(n.texto)}</pre>`)
+        .join("")}</details>`
+    : ""
+}
+${
   e.configurada
     ? `<form method="post" action="/panel/actualizar" class="fila"><button class="principal" name="accion" value="actualizar" onclick="return confirm('Tu setter se reiniciará en 2-3 minutos con la última versión. No pierdes nada de tu configuración. ¿Seguir?')">Actualizar ahora</button><button name="accion" value="comprobar">Comprobar si hay versión nueva</button></form>`
     : `<p class="ayuda">Para que se actualice solo (o con un botón), añade una vez la variable <span class="copiar">TOKEN_RAILWAY</span>: en Railway, abre tu proyecto → <b>Settings → Tokens</b> → crea un token (nombre «actualizaciones», entorno «production»), cópialo y pégalo en tu servicio → <b>Variables</b> → <span class="copiar">TOKEN_RAILWAY</span>.</p>`
@@ -360,6 +367,7 @@ ${campoArea("bienvenidaManual", "Tu bienvenida manual a seguidores nuevos (opcio
 <div class="tarjeta"><h2 style="margin-top:0">Avisos</h2>
 ${campoTexto("emailAvisos", "Email para los avisos", "Tiene que ser EL MISMO email con el que creaste la cuenta de Resend (si no, Resend no los entrega).", "email")}
 ${campoSiNo("avisarEtiquetasNoResponder", "Avisarme por email cuando me escriba alguien con una etiqueta de «no contestar» (como mucho una vez cada 12 h por persona)")}
+${campoSiNo("avisarActualizaciones", "Avisarme por email cuando haya una versión nueva, con lo que trae")}
 ${campoSiNo("emailSeguimientos", "Email diario (9:00) con los seguimientos de los días 3 y 7 ya redactados para que los envíes tú")}
 ${campoSiNo("resumenSemanal", "Resumen semanal los lunes")}
 ${campoSiNo("informeDudas", "Informe de dudas e ideas de contenido los jueves (~0,05 $)")}

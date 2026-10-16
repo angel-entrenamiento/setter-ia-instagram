@@ -229,6 +229,7 @@ export const AJUSTES_EDITABLES = {
   avisarEtiquetasNoResponder: "Avisar por email cuando escribe alguien con una etiqueta de no contestar (si/no)",
   informeDudas: "Informe de dudas los jueves (si/no)",
   actualizacionesAutomaticas: "Instalar solas las versiones nuevas de madrugada (si/no)",
+  avisarActualizaciones: "Avisar por email de cada versión nueva y lo que trae (si/no)",
   listaBlanca: "Cuentas de prueba, sin @, separadas por comas",
   modelo: "Modelo de IA: opus o sonnet",
   esfuerzo: "Cuánto piensa: low, medium o high",

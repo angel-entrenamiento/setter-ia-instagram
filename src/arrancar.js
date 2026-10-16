@@ -5,6 +5,7 @@ import { crearServidor, AlmacenSqlite } from "./servidor.js";
 import { comprobarLicencia, estadoLicencia } from "./licencia.js";
 import { revisarActualizaciones } from "./actualizacion.js";
 import { ahoraLocal } from "./tareas.js";
+import { enviarEmail } from "./integraciones/email.js";
 
 const faltan = [
   ["LICENCIA", process.env.LICENCIA],
@@ -36,9 +37,9 @@ setInterval(() => {
   if (hace > 6 * 3600000 || (e.estado !== "ok" && hace > 5 * 60000)) revisarLicencia().catch(() => {});
 }, 60000);
 
-// Actualizaciones: cada 5 min mira si toca (comprueba GitHub cada 6 h; instala de madrugada si está activado)
+// Actualizaciones: cada 5 min mira si toca (comprueba GitHub cada 6 h; avisa por email de las novedades e instala de madrugada si está activado)
 const actualizar = () =>
-  revisarActualizaciones(almacen, { automatica: negocio.actualizacionesAutomaticas, hora: ahoraLocal().hora }).catch((e) =>
+  revisarActualizaciones(almacen, { automatica: negocio.actualizacionesAutomaticas, hora: ahoraLocal().hora, avisar: enviarEmail }).catch((e) =>
     console.error(`[actualizacion] ${e.message}`),
   );
 actualizar();

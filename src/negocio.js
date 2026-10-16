@@ -31,6 +31,7 @@ export const NEGOCIO_POR_DEFECTO = Object.freeze({
   resumenSemanal: true,
   informeDudas: true,
   actualizacionesAutomaticas: true,
+  avisarActualizaciones: true,
   etiquetasNoResponder: "ALUMNO",
   etiquetaPausa: "IA_PAUSA",
   etiquetaReactivar: "IA_ON",

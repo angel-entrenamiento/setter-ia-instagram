@@ -24,7 +24,7 @@ const DESCRIPCION_ADJUNTO = {
 
 const normalizar = (t) => (t ?? "").toLowerCase().replace(/\s+/g, " ").trim();
 
-export function crearOrquestador({ almacen, manychat, enviarEmail, log = console }) {
+export function crearOrquestador({ almacen, manychat, enviarEmail, crm = null, log = console }) {
   const enCurso = new Set(); // conversaciones que se están procesando (evita dobles respuestas)
   const contactosSinVincular = []; // contactos de ManyChat a la espera de su evento de Meta (sin ig_id)
   const excluidosEnPrueba = new Set(); // IDs de Instagram que no están en la lista blanca (solo modo prueba)
@@ -74,6 +74,7 @@ export function crearOrquestador({ almacen, manychat, enviarEmail, log = console
       if (info.etiquetas?.includes("ALUMNO")) aplicarEtiqueta(conv, "ALUMNO");
       else if (info.etiquetas?.includes("IA_PAUSA")) aplicarEtiqueta(conv, "IA_PAUSA");
       anotarRecursoEnviado(conv, recurso);
+      if (!enListaBlanca(conv)) crm?.registrar("lead_magnet", conv); // CRM: +1 lead magnet del día
       log.info?.(`[manychat] recurso enviado por disparador contacto=…${String(subscriberId).slice(-4)}`);
     }
     almacen.guardar(conv);
@@ -86,6 +87,7 @@ export function crearOrquestador({ almacen, manychat, enviarEmail, log = console
     conv.igId = info.igId || conv.igId;
     conv.nombre = info.nombre || conv.nombre;
     conv.enlaceChat = info.enlaceChat || conv.enlaceChat;
+    conv.altaManychat ||= info.alta || "";
     if (origen && !conv.historial.some((m) => m.rol === "lead")) conv.origen = origen;
     if (recurso) conv.recurso = recurso;
   }
@@ -135,6 +137,7 @@ export function crearOrquestador({ almacen, manychat, enviarEmail, log = console
   async function entradaLead(conv, ev) {
     // Origen de la conversación (primer mensaje)
     if (!conv.historial.length && !(conv.bandeja ?? []).length) {
+      conv.primerMensajeAt ??= new Date().toISOString(); // hora real de llegada (el historial guarda la de respuesta)
       if (ev.deAnuncio) conv.origen = "anuncio";
       else if (ev.respondeHistoria && conv.origen === "espontaneo") conv.origen = "historia";
     }
@@ -322,6 +325,7 @@ export function crearOrquestador({ almacen, manychat, enviarEmail, log = console
         humano: "humano",
       };
       if (porAccion[s.accion]) almacen.registrarEvento(porAccion[s.accion], conv.id);
+      if (s.accion === "traspaso_agendar" && !enListaBlanca(conv)) crm?.registrar("agendada", conv); // CRM: fila en Entrevistas + agendada del día
     }
     if (r.emails.some((e) => e.etiqueta === "ERROR")) almacen.registrarEvento("error", conv.id);
   }

@@ -12,6 +12,8 @@ import { crearTareas } from "./tareas.js";
 import { procesarEvento, aplicarEtiqueta, reiniciar, enListaBlanca } from "./motor.js";
 import { firmaCorrecta } from "./utilidades/enlaces.js";
 import { parsearCuerpoManychat } from "./utilidades/cuerpoManychat.js";
+import { crearCrm } from "./crm/index.js";
+import { cargarListasCrm, guardarListasCrm } from "./crm/opciones.js";
 import { paginaPrivacidad, paginaBorradoDatos } from "./paginasLegales.js";
 import { clienteAnthropic } from "./cerebro/llm.js";
 import { construirPrompt } from "./cerebro/prompt.js";
@@ -28,13 +30,22 @@ const MENSAJES = {
   deshecho: "↩ Has vuelto a la versión anterior.",
   creado: "✨ Conocimiento creado. Repasa cada sección (busca los [RELLENAR] que queden) y prueba a tu asistente en «Probar».",
   ajustes: "✅ Ajustes guardados.",
+  crm: "✅ Desplegables del CRM guardados.",
 };
 
 export function crearServidor({ almacen, manychat: mc = manychat, enviarEmail: email = enviarEmail } = {}) {
   cargarNegocio(almacen);
   usarAlmacenConocimiento(almacen);
-  const orq = crearOrquestador({ almacen, manychat: mc, enviarEmail: email });
-  const tareas = crearTareas({ almacen, manychat: mc, enviarEmail: email });
+  // CRM (src/crm): tablas en la misma base de datos; el INBOUND solo cuenta conversaciones desde que existe
+  const crm = almacen.db
+    ? crearCrm({ db: almacen.db, zonaHoraria: () => config.zonaHoraria, conversaciones: () => almacen.todas(), nombreAsistente: () => negocio.nombreAsistente })
+    : null;
+  if (crm) {
+    cargarListasCrm(almacen);
+    if (!almacen.ajuste("crm_desde")) almacen.fijarAjuste("crm_desde", new Date().toISOString());
+  }
+  const orq = crearOrquestador({ almacen, manychat: mc, enviarEmail: email, crm });
+  const tareas = crearTareas({ almacen, manychat: mc, enviarEmail: email, crm });
 
   // ---------- Utilidades HTTP ----------
   const leerCuerpo = (req, maximo = 2_000_000) =>
@@ -170,6 +181,11 @@ export function crearServidor({ almacen, manychat: mc = manychat, enviarEmail: e
       return redirigir(res, "/panel");
     }
     if (!licenciaPermite()) return html(res, P.htmlSinLicencia(estadoLicencia()), 403);
+    if (crm && (await crm.manejar(req, res, ruta, { leerCuerpo, responder, url }))) return;
+    if (ruta === "/panel/ajustes/crm" && metodo === "POST") {
+      guardarListasCrm(almacen, await leerFormulario(req));
+      return redirigir(res, "/panel/ajustes?m=crm#crm");
+    }
 
     if (ruta === "/panel") return html(res, P.htmlInicio(almacen));
 
@@ -462,7 +478,7 @@ export function crearServidor({ almacen, manychat: mc = manychat, enviarEmail: e
     });
   });
 
-  return { servidor, orq, tareas };
+  return { servidor, orq, tareas, crm };
 }
 
 export { AlmacenSqlite };

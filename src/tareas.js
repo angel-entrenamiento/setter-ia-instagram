@@ -8,6 +8,19 @@ import { construirInformeDudas } from "./avisos/informeDudas.js";
 import { construirEmailSeguimientos, construirEmailResumenSemanal } from "./avisos/emails.js";
 
 const HORA = 3600000;
+const ORIGENES_INBOUND = ["espontaneo", "info", "precio", "anuncio", "historia"];
+const MARGEN_ALTA_MIN = 5;
+
+/**
+ * ManyChat da de alta al contacto con el PRIMER mensaje de la conversación, sea del lead o del dueño (aunque el dueño
+ * escriba a mano desde Instagram). Si el alta es más de 5 min anterior al primer mensaje del lead, la conversación
+ * ya existía: le escribimos nosotros antes (bienvenida) o es un contacto antiguo → no es inbound.
+ */
+export function altaPrevia(conv, primero) {
+  if (!conv.altaManychat) return false;
+  const llegada = Date.parse(conv.primerMensajeAt ?? primero?.fecha);
+  return llegada - Date.parse(conv.altaManychat) > MARGEN_ALTA_MIN * 60_000;
+}
 
 export function ahoraLocal(fecha = new Date()) {
   const p = Object.fromEntries(
@@ -29,7 +42,7 @@ export function ahoraLocal(fecha = new Date()) {
 
 const horasDesde = (iso) => (iso ? (Date.now() - Date.parse(iso)) / HORA : Infinity);
 
-export function crearTareas({ almacen, manychat, enviarEmail, log = console }) {
+export function crearTareas({ almacen, manychat, enviarEmail, crm = null, log = console }) {
   function candidata(conv) {
     if (!conv.manychatId || conv.id.startsWith("panel:") || !admiteSeguimiento(conv)) return false;
     return !config.modoPrueba || enListaBlanca(conv);
@@ -133,6 +146,30 @@ export function crearTareas({ almacen, manychat, enviarEmail, log = console }) {
     await enviarEmail(email);
   }
 
+  /**
+   * INBOUND para el CRM: cuenta a cada persona que abrió ella la conversación (escribió sin que le escribiéramos antes:
+   * pide información o cuenta su caso). No cuentan las respuestas a la bienvenida que el dueño escribe a mano (se
+   * detectan por el alta en ManyChat, ver altaPrevia), ni los disparadores de ManyChat, ni las cuentas de prueba.
+   * Se cuenta una vez por persona, en el día de su primer mensaje, después de que el asistente le conteste.
+   * Solo conversaciones empezadas desde que existe el CRM (no rellena días pasados).
+   */
+  function kpiInbound() {
+    if (!crm) return;
+    const desde = Date.parse(almacen.ajuste("crm_desde") ?? new Date().toISOString());
+    for (const conv of almacen.todas()) {
+      if (conv.kpiInbound || conv.id.startsWith("panel:")) continue;
+      const primero = conv.historial.find((m) => m.rol === "lead");
+      if (!conv.presentado || !primero || Date.parse(conv.primerMensajeAt ?? primero.fecha) < desde) continue;
+      if (!ORIGENES_INBOUND.includes(conv.origen) || enListaBlanca(conv)) continue;
+      if (conv.historial[0] !== primero) continue; // escribimos antes nosotros (el dueño o un mensaje automático)
+      if (altaPrevia(conv, primero)) continue; // el dueño le escribió antes a mano (bienvenida): no es inbound
+      conv.kpiInbound = { dia: ahoraLocal(new Date(conv.primerMensajeAt ?? primero.fecha)).dia };
+      almacen.registrarEvento("inbound", conv.id);
+      crm.registrar("inbound", conv, { dia: conv.kpiInbound.dia });
+      almacen.guardar(conv);
+    }
+  }
+
   function limpiezaDiaria() {
     const borradas = almacen.borrarInactivas(config.diasConservacion);
     almacen.limpiar();
@@ -148,6 +185,7 @@ export function crearTareas({ almacen, manychat, enviarEmail, log = console }) {
   async function cadaCincoMinutos() {
     if (!licenciaPermite()) return;
     await seguimientosAutomaticos();
+    kpiInbound();
     const { dia, hora, diaSemana } = ahoraLocal();
     if (hora >= 9 && almacen.ajuste("ultimo_diario") !== dia) {
       almacen.fijarAjuste("ultimo_diario", dia);
@@ -164,5 +202,5 @@ export function crearTareas({ almacen, manychat, enviarEmail, log = console }) {
     }
   }
 
-  return { cadaCincoMinutos, seguimientosAutomaticos, informeDudas, emailSeguimientos, resumenSemanal, limpiezaDiaria };
+  return { cadaCincoMinutos, seguimientosAutomaticos, kpiInbound, informeDudas, emailSeguimientos, resumenSemanal, limpiezaDiaria };
 }

@@ -34,6 +34,7 @@ export async function infoContacto(subscriberId) {
     igId: d.ig_id ? String(d.ig_id) : "",
     etiquetas: (d.tags ?? []).map((t) => String(t.name).toUpperCase()),
     enlaceChat: d.live_chat_url ?? "",
+    alta: d.subscribed ?? "", // cuándo apareció en ManyChat: con el primer mensaje, suyo o de la cuenta (bienvenida a mano incluida)
   };
 }
 

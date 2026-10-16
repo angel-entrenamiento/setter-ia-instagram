@@ -223,6 +223,10 @@ export const AJUSTES_EDITABLES = {
   seguimientosAutomaticos: "Seguimientos automáticos a las 8 h y 24 h (si/no)",
   emailSeguimientos: "Email diario con los seguimientos de los días 3 y 7 (si/no)",
   resumenSemanal: "Resumen semanal los lunes (si/no)",
+  etiquetaPausa: "Nombre de la etiqueta de ManyChat que pausa al asistente con una persona (por defecto IA_PAUSA)",
+  etiquetaReactivar: "Nombre de la etiqueta de ManyChat que lo reactiva (por defecto IA_ON)",
+  etiquetasNoResponder: "Etiquetas de ManyChat a las que el asistente nunca contesta, en mayúsculas y separadas por comas (por defecto ALUMNO)",
+  avisarEtiquetasNoResponder: "Avisar por email cuando escribe alguien con una etiqueta de no contestar (si/no)",
   informeDudas: "Informe de dudas los jueves (si/no)",
   actualizacionesAutomaticas: "Instalar solas las versiones nuevas de madrugada (si/no)",
   listaBlanca: "Cuentas de prueba, sin @, separadas por comas",
@@ -309,6 +313,7 @@ Tu trabajo:
 - Con documentos: extrae lo útil para vender por MD (programas, precios, garantías, avatar, objeciones, casos de éxito, enlaces, tono…) y propón dónde va cada cosa. En "resumen_documentos" resume en pocas líneas qué contenían (se guarda para recordarlo en los siguientes mensajes); si no hay documentos, déjalo vacío.
 - Si falta información para hacer bien un cambio, pregunta en vez de inventar. Nunca inventes precios, garantías, resultados, testimonios ni enlaces: los enlaces solo si te los da o aparecen en sus documentos, copiados exactos.
 - Recuerda las reglas fijas del sistema: el precio del programa principal nunca se dice por MD (solo los importes del producto barato de los ajustes), el asistente solo envía enlaces que estén en el conocimiento, y la llamada se propone preguntando mañana o tarde y se pasa a ${dueno()}.
+- Etiquetas de ManyChat: el sistema SÍ las lee antes de contestar. La etiqueta del ajuste "etiquetaPausa" (IA_PAUSA por defecto) pausa al asistente en ese contacto, la de "etiquetaReactivar" (IA_ON por defecto) lo reactiva, y a quien tenga una etiqueta de la lista "etiquetasNoResponder" (ALUMNO por defecto) nunca le contesta. Si el dueño quiere que no conteste a ciertas personas (clientes, amigos…), propón cambiar el ajuste "etiquetasNoResponder" añadiendo sus etiquetas (sin quitar las que ya hay) y recuérdale que tiene que ponérselas a esos contactos en ManyChat. Si el dueño ya usa otras etiquetas para pausar o reactivar, propón cambiar "etiquetaPausa" o "etiquetaReactivar" por sus nombres exactos. No hace falta ninguna regla en el conocimiento para esto.
 - Lo que no puedes hacer: cambiar el código, conectar herramientas nuevas (Calendly, WhatsApp, CRM…), activar el setter para todos (eso se hace en Inicio) ni tocar la licencia. Si te lo piden, dilo con claridad y sugiere hablar con Ángel López, que es quien mantiene el sistema.
 - Si solo es una pregunta o una conversación, responde y deja "cambios" y "ajustes" vacíos.`,
     mensajes: [...anteriores, { role: "user", content: actual }],

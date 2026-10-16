@@ -1,6 +1,6 @@
 // HTML del panel. Sin librerías: formularios sencillos que funcionan en el móvil.
 import { config } from "../config.js";
-import { negocio } from "../negocio.js";
+import { negocio, nombreEtiqueta, etiquetasNoResponder } from "../negocio.js";
 import { SECCIONES, leerSeccion, huecosPorRellenar, hayAnterior, fechaSeccion, plantilla } from "../cerebro/conocimiento.js";
 import { fichaEnTexto, nombreAutor, nombresMetricas } from "../avisos/emails.js";
 import { enListaBlanca } from "../motor.js";
@@ -350,10 +350,16 @@ ${campoArea("aQueSeDedica", "A qué te dedicas, en una o dos frases", "Ej.: Entr
 ${campoTexto("paisPrincipal", "País principal de tus clientes")}
 ${campoOpciones("zonaHoraria", "Zona horaria", [["Europe/Madrid", "España (península)"], ["Atlantic/Canary", "Canarias"], ["America/Mexico_City", "México"], ["America/Bogota", "Colombia"], ["America/Argentina/Buenos_Aires", "Argentina"], ["America/Santiago", "Chile"], ["America/Lima", "Perú"]])}
 ${campoSiNo("decirVirtualAlPresentarse", "Decir que es un asistente virtual al presentarse", "Recomendado: la ley europea de IA obliga a informar de que se habla con una IA. Si lo desmarcas, solo lo dirá si se lo preguntan (decisión tuya).")}
+<h2 id="etiquetas">Etiquetas de ManyChat</h2>
+<p class="ayuda">Escríbelas igual que en ManyChat. Si ya usas otras para lo mismo, pon aquí las tuyas.</p>
+${campoTexto("etiquetaPausa", "Etiqueta para pausar al asistente con una persona", "Por defecto IA_PAUSA. Mientras el contacto la tenga, el asistente no le contesta (te lo quedas tú).")}
+${campoTexto("etiquetaReactivar", "Etiqueta para reactivarlo", "Por defecto IA_ON. Al ponerla, el asistente vuelve a contestar y la quita sola.")}
+${campoTexto("etiquetasNoResponder", "Etiquetas de ManyChat a las que NO contesta", "Separadas por comas, escritas igual que en ManyChat. Ej.: ALUMNO, CLIENTES, AMIGOS. A quien tenga cualquiera de ellas el asistente nunca le escribe (tampoco seguimientos).")}
 ${campoArea("bienvenidaManual", "Tu bienvenida manual a seguidores nuevos (opcional)", "Si escribes tú a mano a los seguidores nuevos, pega aquí el texto. Así, cuando contesten, el asistente sigue la conversación sin presentarse.")}
 </div>
 <div class="tarjeta"><h2 style="margin-top:0">Avisos</h2>
 ${campoTexto("emailAvisos", "Email para los avisos", "Tiene que ser EL MISMO email con el que creaste la cuenta de Resend (si no, Resend no los entrega).", "email")}
+${campoSiNo("avisarEtiquetasNoResponder", "Avisarme por email cuando me escriba alguien con una etiqueta de «no contestar» (como mucho una vez cada 12 h por persona)")}
 ${campoSiNo("emailSeguimientos", "Email diario (9:00) con los seguimientos de los días 3 y 7 ya redactados para que los envíes tú")}
 ${campoSiNo("resumenSemanal", "Resumen semanal los lunes")}
 ${campoSiNo("informeDudas", "Informe de dudas e ideas de contenido los jueves (~0,05 $)")}
@@ -410,9 +416,10 @@ export function htmlManychat(almacen) {
 <li>Si ya usas otras automatizaciones de palabras clave, siguen funcionando: la respuesta predeterminada solo salta cuando no salta ninguna otra.</li></ol></div>
 <div class="tarjeta"><h2 style="margin-top:0">2. Etiquetas de control</h2>
 <p>Crea en ManyChat estas etiquetas (Settings → Tags) y úsalas en cada contacto cuando lo necesites:</p>
-<ul><li><span class="copiar">IA_PAUSA</span>: ${asistente()} deja de contestar a esa persona (te la quedas tú).</li>
-<li><span class="copiar">IA_ON</span>: lo reactivas (se quita sola).</li>
-<li><span class="copiar">ALUMNO</span>: es cliente tuyo; ${asistente()} nunca le contesta y te avisa por email.</li></ul>
+<ul><li><span class="copiar">${esc(nombreEtiqueta("IA_PAUSA"))}</span>: ${asistente()} deja de contestar a esa persona (te la quedas tú).</li>
+<li><span class="copiar">${esc(nombreEtiqueta("IA_ON"))}</span>: lo reactivas (se quita sola).</li>
+<li>${etiquetasNoResponder().map((e) => `<span class="copiar">${esc(e)}</span>`).join(" ") || "(ninguna)"}: ${asistente()} nunca les contesta (por ejemplo, tus clientes) y te avisa por email si así lo eliges.</li></ul>
+<p class="ayuda">Si ya usas otras etiquetas con otros nombres, cámbialos en <a href="/panel/ajustes#etiquetas">Ajustes → Etiquetas de ManyChat</a> (o pídeselo al Asistente) y no tienes que crear estas.</p>
 <p class="ayuda">Ojo: si contestas tú desde la bandeja de ManyChat, ManyChat pausa sus automatizaciones en ese chat; pulsa «Reanudar» para que ${asistente()} siga. Si contestas desde la app de Instagram no pasa.</p></div>
 <div class="tarjeta"><h2 style="margin-top:0">3. Probar con tu cuenta de pruebas</h2>
 <ol class="pasos"><li>Pon tu cuenta secundaria en <a href="/panel/ajustes">Ajustes → Cuentas de prueba</a> (con el modo prueba activado).</li>

@@ -6,6 +6,7 @@ import { fichaEnTexto, nombreAutor, nombresMetricas } from "../avisos/emails.js"
 import { enListaBlanca } from "../motor.js";
 import { PREGUNTAS, cambioAplicable, AJUSTES_EDITABLES } from "./educar.js";
 import { estadoActualizacion, corta } from "../actualizacion.js";
+import { LISTAS_EDITABLES, listasCrm } from "../crm/opciones.js";
 
 export const esc = (t) =>
   String(t ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -47,6 +48,7 @@ export function pagina(titulo, cuerpo, activa = "") {
     ["/panel", "Inicio"],
     ["/panel/probar", "Probar"],
     ["/panel/asistente", "Asistente"],
+    ["/panel/crm", "CRM"],
     ["/panel/conocimiento", "Conocimiento"],
     ["/panel/ajustes", "Ajustes"],
     ["/panel/manychat", "Conectar ManyChat"],
@@ -124,6 +126,7 @@ export function htmlInicio(almacen) {
   return pagina(
     `${negocio.nombreAsistente} · Panel`,
     `<h1>Panel de ${asistente()}</h1>
+<p><a href="/panel/crm"><b>📊 Abrir el CRM</b></a> <span class="ayuda">(conversaciones, entrevistas y ventas)</span></p>
 ${
   pendientes
     ? `<div class="tarjeta"><h2 style="margin-top:0">🚀 Primeros pasos (${pasos.length - pendientes}/${pasos.length})</h2>${listaPasos}</div>`
@@ -302,6 +305,17 @@ const campoOpciones = (k, titulo, opciones, ayuda = "") =>
     .map(([v, n]) => `<option value="${v}" ${String(negocio[k]) === v ? "selected" : ""}>${n}</option>`)
     .join("")}</select>`;
 
+function bloqueListasCrm() {
+  const l = listasCrm();
+  const campos = LISTAS_EDITABLES.map(
+    ({ clave, nombre, ayuda }) =>
+      `<label for="lista_${clave}">${esc(nombre)}</label>${ayuda ? `<p class="ayuda">${esc(ayuda)}</p>` : ""}<textarea id="lista_${clave}" name="lista_${clave}" rows="4">${esc((l[clave] ?? []).join("\n"))}</textarea>`,
+  ).join("");
+  return `<form method="post" action="/panel/ajustes/crm" class="tarjeta" id="crm"><h2 style="margin-top:0">CRM: opciones de los desplegables</h2>
+<p class="ayuda">Las opciones que salen en la pestaña Entrevistas del <a href="/panel/crm">CRM</a>. Escribe una opción por línea. Si quitas una que ya usabas, las filas que la tenían la conservan.</p>
+${campos}<p><button class="principal">Guardar desplegables</button></p></form>`;
+}
+
 function bloqueActualizaciones() {
   const e = estadoActualizacion();
   const estadoTexto = !e.actual
@@ -363,6 +377,7 @@ ${campoSiNo("actualizacionesAutomaticas", "Instalar solo las versiones nuevas de
 <input type="hidden" name="modoPrueba" value="${negocio.modoPrueba ? "si" : "no"}">
 </div>
 <p><button class="principal">Guardar ajustes</button></p></form>
+${bloqueListasCrm()}
 ${bloqueActualizaciones()}
 <div class="tarjeta" id="claves"><h2 style="margin-top:0">Claves (se ponen en Railway → tu servicio → Variables)</h2>
 <ul>${clave("LICENCIA", process.env.LICENCIA)}${clave("ANTHROPIC_API_KEY", process.env.ANTHROPIC_API_KEY)}${clave("MANYCHAT_API_KEY", config.manychatApiKey)}${clave("RESEND_API_KEY", config.resendApiKey || config.gmailContrasena)}${clave("PANEL_CLAVE", config.panelClave)}</ul>

@@ -2,7 +2,7 @@
 // y sirve el panel donde cada dueño configura, prueba y educa a su asistente. Arranque: npm start
 import http from "node:http";
 import { config } from "./config.js";
-import { negocio, cargarNegocio, guardarNegocio, fijarModoPrueba } from "./negocio.js";
+import { negocio, cargarNegocio, guardarNegocio, fijarModoPrueba, nombreEtiqueta } from "./negocio.js";
 import { AlmacenSqlite } from "./almacen/sqlite.js";
 import * as manychat from "./integraciones/manychat.js";
 import { enviarEmail, comprobarEmail } from "./integraciones/email.js";
@@ -87,10 +87,10 @@ export function crearServidor({ almacen, manychat: mc = manychat, enviarEmail: e
     const accion = form.get("accion");
     if (accion === "pausar") {
       aplicarEtiqueta(conv, "IA_PAUSA");
-      if (conv.manychatId) await mc.ponerEtiqueta(conv.manychatId, "IA_PAUSA").catch(() => {});
+      if (conv.manychatId) await mc.ponerEtiqueta(conv.manychatId, nombreEtiqueta("IA_PAUSA")).catch(() => {});
     } else if (accion === "reactivar") {
       aplicarEtiqueta(conv, "IA_ON");
-      if (conv.manychatId) await mc.quitarEtiqueta(conv.manychatId, "IA_PAUSA").catch(() => {});
+      if (conv.manychatId) await mc.quitarEtiqueta(conv.manychatId, nombreEtiqueta("IA_PAUSA")).catch(() => {});
     } else if (accion === "reiniciar" && enListaBlanca(conv)) {
       reiniciar(conv);
     } else if (accion === "nota") {

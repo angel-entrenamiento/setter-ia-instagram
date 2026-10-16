@@ -1,6 +1,6 @@
 // Tareas programadas: seguimientos, email diario de seguimientos (9:00), resumen semanal (lunes 9:00) y limpieza RGPD.
 import { config } from "./config.js";
-import { negocio } from "./negocio.js";
+import { negocio, tieneEtiquetaNoResponder, nombreEtiqueta } from "./negocio.js";
 import { licenciaPermite } from "./licencia.js";
 import { admiteSeguimiento, redactarSeguimiento, enListaBlanca, aplicarEtiqueta, soloRecurso } from "./motor.js";
 import { revisarSeguimiento } from "./cerebro/reglas.js";
@@ -48,11 +48,11 @@ export function crearTareas({ almacen, manychat, enviarEmail, crm = null, log = 
     return !config.modoPrueba || enListaBlanca(conv);
   }
 
-  /** Antes de escribir por iniciativa propia, mira en ManyChat si el dueño la ha marcado como ALUMNO o IA_PAUSA. */
+  /** Antes de escribir por iniciativa propia, mira en ManyChat si el dueño le ha puesto una etiqueta de «no contestar» o IA_PAUSA. */
   async function etiquetasPermiten(conv) {
     const { etiquetas = [] } = await manychat.infoContacto(conv.manychatId);
-    if (etiquetas.includes("ALUMNO")) aplicarEtiqueta(conv, "ALUMNO");
-    else if (etiquetas.includes("IA_PAUSA")) aplicarEtiqueta(conv, "IA_PAUSA");
+    if (tieneEtiquetaNoResponder(etiquetas)) aplicarEtiqueta(conv, "ALUMNO");
+    else if (etiquetas.includes(nombreEtiqueta("IA_PAUSA"))) aplicarEtiqueta(conv, "IA_PAUSA");
     else return true;
     almacen.guardar(conv);
     return false;

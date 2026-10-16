@@ -42,7 +42,7 @@ export function reiniciar(conv) {
   return conv;
 }
 
-/** Etiquetas de control de ManyChat: IA_PAUSA, IA_ON, ALUMNO. */
+/** Etiquetas de control de ManyChat: IA_PAUSA, IA_ON y ALUMNO (= cualquier etiqueta de «no contestar» de Ajustes). */
 export function aplicarEtiqueta(conv, etiqueta, { quitar = false } = {}) {
   const e = etiqueta.toUpperCase();
   conv.etiquetas = quitar ? conv.etiquetas.filter((x) => x !== e) : [...new Set([...conv.etiquetas, e])];
@@ -253,9 +253,9 @@ export async function procesarEvento(conv, evento, { modelo = config.modelo, esf
 
   if (conv.pausa?.motivo === "alumno") {
     const ultimoAviso = conv.ultimoAvisoAlumno ? Date.parse(conv.ultimoAvisoAlumno) : 0;
-    if (Date.now() - ultimoAviso > 12 * 3600 * 1000) {
+    if (negocio.avisarEtiquetasNoResponder && Date.now() - ultimoAviso > 12 * 3600 * 1000) {
       conv.ultimoAvisoAlumno = new Date().toISOString();
-      resultado.emails.push(construirEmail("HUMANO", conv, { detalle: `Es un ALUMNO actual: ${negocio.nombreAsistente} no le responde.` }));
+      resultado.emails.push(construirEmail("HUMANO", conv, { detalle: `Tiene una etiqueta de «no contestar» en ManyChat (${negocio.etiquetasNoResponder}): ${negocio.nombreAsistente} no le responde. Contesta tú si hace falta.` }));
     }
     return { ...resultado, ignorado: "alumno" };
   }

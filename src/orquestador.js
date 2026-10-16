@@ -1,11 +1,11 @@
 // Orquestador: une los avisos de Meta (oído), la API de ManyChat (boca), el motor (cerebro) y los emails.
 // - Agrupa los mensajes seguidos del lead y aplica el retraso "humano" antes de responder.
 // - Distingue los ecos (lo que envía la cuenta): los del asistente se ignoran; los del dueño se anotan.
-// - Sincroniza las etiquetas de ManyChat (IA_PAUSA, IA_ON, ALUMNO) antes de cada respuesta.
+// - Sincroniza las etiquetas de ManyChat (IA_PAUSA, IA_ON y las de «no contestar» de Ajustes) antes de cada respuesta.
 import { config } from "./config.js";
 import { procesarEvento, anotarMensajeLead, aplicarEtiqueta, enListaBlanca, anotarRecursoEnviado } from "./motor.js";
 import { construirEmail } from "./avisos/emails.js";
-import { negocio } from "./negocio.js";
+import { negocio, tieneEtiquetaNoResponder, nombreEtiqueta } from "./negocio.js";
 import { licenciaPermite } from "./licencia.js";
 
 const TIPO_MOTOR = {
@@ -71,8 +71,8 @@ export function crearOrquestador({ almacen, manychat, enviarEmail, crm = null, l
     vincular(conv, info, origen, recurso);
     if (origen === "recurso") {
       // Disparador de ManyChat por comentario: le ha llegado el MD automático → seguimientos a las 8 y 24 h si no contesta
-      if (info.etiquetas?.includes("ALUMNO")) aplicarEtiqueta(conv, "ALUMNO");
-      else if (info.etiquetas?.includes("IA_PAUSA")) aplicarEtiqueta(conv, "IA_PAUSA");
+      if (tieneEtiquetaNoResponder(info.etiquetas)) aplicarEtiqueta(conv, "ALUMNO");
+      else if (info.etiquetas?.includes(nombreEtiqueta("IA_PAUSA"))) aplicarEtiqueta(conv, "IA_PAUSA");
       anotarRecursoEnviado(conv, recurso);
       if (!enListaBlanca(conv)) crm?.registrar("lead_magnet", conv); // CRM: +1 lead magnet del día
       log.info?.(`[manychat] recurso enviado por disparador contacto=…${String(subscriberId).slice(-4)}`);
@@ -214,15 +214,18 @@ export function crearOrquestador({ almacen, manychat, enviarEmail, crm = null, l
   async function sincronizarEtiquetas(conv) {
     const info = await manychat.infoContacto(conv.manychatId);
     vincular(conv, info);
-    const tiene = (e) => info.etiquetas.includes(e);
-    if (tiene("ALUMNO") && conv.pausa?.motivo !== "alumno") aplicarEtiqueta(conv, "ALUMNO");
-    if (!tiene("ALUMNO") && conv.pausa?.motivo === "alumno") aplicarEtiqueta(conv, "ALUMNO", { quitar: true });
+    // Internamente son IA_PAUSA / IA_ON; en ManyChat, el nombre que el dueño haya puesto en Ajustes
+    const tiene = (e) => info.etiquetas.includes(nombreEtiqueta(e));
+    // Etiquetas de «no contestar» (ALUMNO por defecto; cada uno pone las suyas en Ajustes): internamente es la pausa "alumno"
+    const noResponder = tieneEtiquetaNoResponder(info.etiquetas);
+    if (noResponder && conv.pausa?.motivo !== "alumno") aplicarEtiqueta(conv, "ALUMNO");
+    if (!noResponder && conv.pausa?.motivo === "alumno") aplicarEtiqueta(conv, "ALUMNO", { quitar: true });
     if (tiene("IA_PAUSA") && !conv.pausa) aplicarEtiqueta(conv, "IA_PAUSA");
     if (!tiene("IA_PAUSA") && conv.pausa?.motivo === "etiqueta") aplicarEtiqueta(conv, "IA_PAUSA", { quitar: true });
     if (tiene("IA_ON")) {
       aplicarEtiqueta(conv, "IA_ON");
-      await manychat.quitarEtiqueta(conv.manychatId, "IA_ON").catch(() => {});
-      if (tiene("IA_PAUSA")) await manychat.quitarEtiqueta(conv.manychatId, "IA_PAUSA").catch(() => {});
+      await manychat.quitarEtiqueta(conv.manychatId, nombreEtiqueta("IA_ON")).catch(() => {});
+      if (tiene("IA_PAUSA")) await manychat.quitarEtiqueta(conv.manychatId, nombreEtiqueta("IA_PAUSA")).catch(() => {});
     }
   }
 

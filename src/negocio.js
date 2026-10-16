@@ -31,6 +31,10 @@ export const NEGOCIO_POR_DEFECTO = Object.freeze({
   resumenSemanal: true,
   informeDudas: true,
   actualizacionesAutomaticas: true,
+  etiquetasNoResponder: "ALUMNO",
+  etiquetaPausa: "IA_PAUSA",
+  etiquetaReactivar: "IA_ON",
+  avisarEtiquetasNoResponder: true,
 });
 
 /** Valores actuales (se rellenan con cargarNegocio al arrancar). */
@@ -51,6 +55,29 @@ export function importesProductoBarato() {
 
 export const hayProductoBarato = () =>
   Boolean(negocio.productoBaratoActivo && negocio.productoBaratoNombre && negocio.productoBaratoEnlacePago);
+
+/** Etiquetas de ManyChat a las que el asistente nunca contesta (en mayúsculas, como las devuelve ManyChat). */
+export function etiquetasNoResponder() {
+  return String(negocio.etiquetasNoResponder ?? "")
+    .split(/[,;\n]+/)
+    .map((s) => s.trim().replace(/^[(\[«"']+|[)\]»"']+$/g, "").trim().toUpperCase())
+    .filter(Boolean);
+}
+
+const limpiarEtiqueta = (t) => String(t ?? "").trim().replace(/^[(\[«"']+|[)\]»"']+$/g, "").trim().toUpperCase();
+
+/** Nombre en ManyChat de las etiquetas de control (cada uno puede usar las suyas en Ajustes). */
+export function nombreEtiqueta(interna) {
+  if (interna === "IA_PAUSA") return limpiarEtiqueta(negocio.etiquetaPausa) || "IA_PAUSA";
+  if (interna === "IA_ON") return limpiarEtiqueta(negocio.etiquetaReactivar) || "IA_ON";
+  return interna;
+}
+
+/** ¿Tiene alguna etiqueta de «no contestar» (clientes, amigos…)? */
+export const tieneEtiquetaNoResponder = (etiquetas = []) => {
+  const lista = etiquetasNoResponder();
+  return etiquetas.some((e) => lista.includes(String(e).trim().toUpperCase()));
+};
 
 /** Nombre con el que el asistente se refiere al dueño ("el responsable" si aún no está puesto). */
 export const dueno = () => negocio.nombreDueno || "el responsable";

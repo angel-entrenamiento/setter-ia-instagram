@@ -5,6 +5,7 @@ El usuario es el dueño de un negocio (normalmente no programa). Háblale en esp
 ## Cómo está montado
 - `src/` servidor Node 24 (sin framework). `src/motor.js` (decide y llama a la IA), `src/cerebro/reglas.js` (reglas duras: precios, enlaces, llamada, identidad), `src/cerebro/prompt.js` (construye el prompt), `src/panel/` (panel web y la IA de "Enseñar"), `src/negocio.js` (Ajustes del panel).
 - El **conocimiento** (6 secciones markdown) vive en la base de datos del servidor y se edita en el panel. `conocimiento/` del repo son solo las **plantillas** iniciales: no las edites para cambiar el setter de un usuario.
+- El **CRM** está en `src/crm/` (ver `src/crm/LEEME.md`). Para verlo en local sin claves: `node herramientas/verCrmLocal.js`.
 - Marcadores que se sustituyen solos: `{asistente}`, `{dueno}`, `{negocio}`, `{cuenta}`, `{llamada}`, `{producto_barato}`.
 
 ## Educar al setter (lo habitual)

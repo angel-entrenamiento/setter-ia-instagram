@@ -78,6 +78,21 @@ Cuando estés contento con las pruebas: panel → **Inicio** → **Activar para 
 - **Asistente** (pestaña del panel): pídele cambios hablando ("añade mi programa nuevo", "cambia el precio del producto barato a 67") o súbele PDF y textos de tu negocio. Te propone los cambios y tú pulsas **Aplicar**. Si tienes un Word o una presentación, guárdalos antes como PDF. Cuesta unos 0,10 $ por mensaje.
 - **Gasto**: lo ves en el panel (Inicio → Gasto IA) y en console.anthropic.com. Cada vez que cambias el conocimiento, la primera respuesta cuesta algo más (~0,20 $) porque la IA vuelve a leerlo todo.
 
+## CRM
+En el panel, **📊 Abrir el CRM** (o la pestaña **CRM**). Empieza vacío y cada casilla se guarda sola al cambiarla.
+- **Conversaciones**: una fila por día con Outbound, Inbound, Lead magnet, Agendadas Outbound, Agendadas Inbound y Cerradas. Abajo, el TOTAL del mes, tu objetivo de outbound (GOAL) y los resúmenes del trimestre y del año.
+- **Entrevistas**: una fila por persona que va a llamada, agrupadas por mes, con resumen y observaciones del mes.
+- **Ventas**: un bloque por mes.
+
+Lo que rellena tu asistente solo:
+- **Inbound**: +1 cuando alguien te escribe sin que le hayas escrito antes (no cuentan las respuestas a tu bienvenida manual, ni los comentarios de ManyChat, ni tu cuenta de pruebas).
+- **Lead magnet**: +1 cuando un disparador de comentarios de ManyChat envía un recurso.
+- **Agendadas**: cuando propone la llamada y te pasa la conversación, suma una agendada y añade a la persona en **Entrevistas** (🤖) con lo que sabe de ella.
+- **Cerradas**: se suma sola al marcar **«Entra»** en una entrevista.
+- El **Outbound** lo pones tú. Cualquier número se puede corregir a mano.
+
+Las opciones de los desplegables de Entrevistas (Procedencia, Servicio, Qué le ocurre…) se cambian en **Ajustes → CRM: opciones de los desplegables**, una por línea. «Qué le ocurre» empieza vacía: pon los problemas típicos de tus clientes.
+
 ## Actualizaciones
 En **Ajustes → Actualizaciones** ves si tienes la última versión. Con `TOKEN_RAILWAY` puesto y la casilla de actualización automática marcada, las versiones nuevas se instalan solas entre las 3:00 y las 5:00. Tu conocimiento, tus ajustes y tus conversaciones no se tocan.
 

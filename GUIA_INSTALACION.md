@@ -61,7 +61,7 @@ En el panel → **Conectar ManyChat** tienes todo para copiar y pegar:
    - Borra el bloque de mensaje que trae y pon una **Acción → Solicitud externa**: POST, la URL, la cabecera `X-Token` y el cuerpo que te indica el panel (los campos con «{+} Añadir un campo»: *Id de contacto* y *Última entrada de texto*). La vista previa dirá «JSON no válido»: es normal.
    - ⚠️ **«Última entrada de texto» va sin comillas alrededor**, y tienes que hacer clic encima de su etiqueta azul y marcar **«Codificar a JSON»**. Si no, los mensajes con varias líneas o con comillas no llegan a tu setter.
    - **Guardar** y **Publicar En Vivo**.
-2. Crea las etiquetas **IA_PAUSA**, **IA_ON** y **ALUMNO**.
+2. Crea las etiquetas **IA_PAUSA**, **IA_ON** y **ALUMNO**. Si ya usas otras etiquetas para lo mismo (por ejemplo `PAUSAR_BOT` o `CLIENTES`), no hace falta crearlas: pon tus nombres en **Ajustes → Etiquetas de ManyChat** o pídeselo al **Asistente** del panel.
 3. Desde tu cuenta de pruebas, escribe un MD a tu Instagram. Tu setter contestará en 1-2 minutos. Escribe `#reset` para empezar de cero.
 
 ## Paso 7 · Lanzarlo
@@ -72,7 +72,8 @@ Cuando estés contento con las pruebas: panel → **Inicio** → **Activar para 
 ## El día a día
 - **Emails que recibirás**: `[AGENDAR]` (te toca cerrar día y hora de la llamada), `[AUDIO]` (escúchalo, contesta tú y apunta en una línea qué dijo con el enlace del email), `[ALERTA]`, `[HUMANO]`, `[PAGO]`, `[ERROR]`, y cada mañana `[SEGUIMIENTOS]` con mensajes ya redactados para que los envíes tú.
 - **Quedarte tú una conversación**: etiqueta **IA_PAUSA** en ManyChat (o el botón Pausar del panel). Para devolvérsela: **IA_ON**.
-- **Clientes actuales**: etiqueta **ALUMNO** y el setter nunca les contesta.
+- **Clientes actuales**: etiqueta **ALUMNO** y el setter nunca les contesta (ni les hace seguimientos).
+- **Otras personas a las que no debe contestar** (clientes antiguos, amigos, colaboradores…): en **Ajustes → "Etiquetas de ManyChat a las que NO contesta"** añade las tuyas separadas por comas (por ejemplo `ALUMNO, CLIENTES, AMIGOS`) y pónselas a esos contactos en ManyChat. Puedes elegir si quieres un email cuando te escriban.
 - **Si escribes tú en un chat** desde la app de Instagram, el setter lo tiene en cuenta y sigue después sin contradecirte.
 - **Educarlo**: revisa conversaciones en el panel y usa **Enseñar a…** cuando algo no te guste. Es la forma más rápida de que mejore.
 - **Asistente** (pestaña del panel): pídele cambios hablando ("añade mi programa nuevo", "cambia el precio del producto barato a 67") o súbele PDF y textos de tu negocio. Te propone los cambios y tú pulsas **Aplicar**. Si tienes un Word o una presentación, guárdalos antes como PDF. Cuesta unos 0,10 $ por mensaje.

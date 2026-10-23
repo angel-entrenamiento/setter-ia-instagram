@@ -11,10 +11,11 @@ export function clienteAnthropic() {
 }
 
 export class ErrorModelo extends Error {
-  constructor(mensaje, { causa, tipo } = {}) {
+  constructor(mensaje, { causa, tipo, coste = 0 } = {}) {
     super(mensaje);
     this.tipo = tipo ?? "error_modelo";
     this.causa = causa;
+    this.coste = coste; // lo que ya se ha cobrado aunque la respuesta no sirva
   }
 }
 
@@ -78,10 +79,10 @@ export async function pedirTurno(mensajes, contexto, { modelo = config.modelo, e
 
   const coste = costeUsd(respuesta.model ?? model, respuesta.usage);
   if (respuesta.stop_reason === "refusal") {
-    throw new ErrorModelo("El modelo ha rechazado responder (refusal)", { tipo: "rechazo" });
+    throw new ErrorModelo("El modelo ha rechazado responder (refusal)", { tipo: "rechazo", coste });
   }
   if (respuesta.stop_reason === "max_tokens") {
-    throw new ErrorModelo("La respuesta se ha cortado (max_tokens)", { tipo: "cortada" });
+    throw new ErrorModelo("La respuesta se ha cortado (max_tokens)", { tipo: "cortada", coste });
   }
 
   const texto = respuesta.content
@@ -92,11 +93,11 @@ export async function pedirTurno(mensajes, contexto, { modelo = config.modelo, e
   try {
     json = JSON.parse(texto);
   } catch {
-    throw new ErrorModelo("La respuesta no es un JSON válido", { tipo: "json_invalido" });
+    throw new ErrorModelo("La respuesta no es un JSON válido", { tipo: "json_invalido", coste });
   }
   const validado = SalidaSchema.safeParse(json);
   if (!validado.success) {
-    throw new ErrorModelo(`La respuesta no cumple el esquema: ${validado.error.message}`, { tipo: "esquema" });
+    throw new ErrorModelo(`La respuesta no cumple el esquema: ${validado.error.message}`, { tipo: "esquema", coste });
   }
   return { salida: validado.data, uso: respuesta.usage, modelo: respuesta.model ?? model, coste };
 }
@@ -108,7 +109,7 @@ export function usarTextoDePrueba(fn) {
 }
 
 export async function pedirTexto({ model, system, mensajes, max_tokens = 2000, esfuerzo, esquemaJson }) {
-  if (textoDePrueba) return { texto: await textoDePrueba(mensajes), coste: 0 };
+  if (textoDePrueba) return { texto: await textoDePrueba(mensajes, { model, system }), coste: 0 };
   const peticion = { model, max_tokens, system, messages: mensajes };
   const output_config = {};
   if (esfuerzo && !model.includes("haiku")) output_config.effort = esfuerzo;

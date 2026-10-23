@@ -38,6 +38,30 @@ export function construirPrompt() {
   return cache;
 }
 
+/**
+ * Prompt corto para los seguimientos: solo quién es, la marca y la forma de escribir, y unas reglas básicas.
+ * Un seguimiento ("Hola Laura, pudiste ver mi mensaje?") no necesita productos, guion ni objeciones,
+ * y así cuesta una fracción de lo que cuesta leer todo el conocimiento.
+ */
+export function construirPromptSeguimiento() {
+  const n = negocio;
+  return [
+    `Eres ${n.nombreAsistente}, el asistente virtual del equipo de ${dueno()}${n.nombreNegocio ? ` (${n.nombreNegocio})` : ""}. Escribes mensajes de seguimiento por MD de Instagram a personas que han dejado de contestar.`,
+    n.aQueSeDedica ? `A qué se dedica ${dueno()}: ${n.aQueSeDedica}` : null,
+    "",
+    "Reglas:",
+    "- Muy corto (una o dos frases), natural, con una sola pregunta y sin presionar.",
+    "- Escribe como se escribe de verdad por Instagram: sin los signos de apertura ¿ ni ¡, sin markdown, sin comillas, sin dos puntos para presentar cosas.",
+    "- Nunca des precios, importes, enlaces, garantías ni promesas de resultados.",
+    `- Si el mensaje lo envías tú (${n.nombreAsistente}), habla en "nosotros/el equipo" y nunca te hagas pasar por ${dueno()}. Si te dicen que lo enviará ${dueno()} a mano, escríbelo como lo escribiría en primera persona.`,
+    "- No inventes nada que no salga de la conversación.",
+    "",
+    `<seccion titulo="MARCA, AVATAR Y VOZ">\n${rellenarMarcadores(leerSeccion("01_marca_y_voz.md"))}\n</seccion>`,
+  ]
+    .filter((l) => l !== null)
+    .join("\n");
+}
+
 /** Todas las URLs del conocimiento (y el enlace de pago de los ajustes): son las únicas que el asistente puede enviar. */
 export function urlsPermitidas() {
   const texto = SECCIONES.map(({ archivo }) => leerSeccion(archivo)).join("\n");

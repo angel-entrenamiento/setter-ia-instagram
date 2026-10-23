@@ -2,6 +2,13 @@
 
 Lo que trae cada versión, de la más nueva a la más antigua. Cuando hay una entrada nueva, tu setter te avisa por email y la verás en tu panel → Ajustes → Actualizaciones.
 
+## 2026-10-20 · Menos gasto de IA
+- Los seguimientos («Hola Laura, pudiste ver mi mensaje?») ahora cuestan alrededor de 0,01 $ en vez de unos 0,20 $: ya no leen todo tu conocimiento, solo tu forma de escribir y la conversación, y usan Claude Sonnet. Si prefieres Opus, cámbialo en Ajustes → Modelo para los seguimientos.
+- Las respuestas a tus leads no cambian: siguen usando tu modelo y todo tu conocimiento.
+- En Inicio verás en qué se va el gasto: respuestas, seguimientos y uso del panel.
+- El contador del panel suma también las respuestas que salen mal y se repiten (Anthropic las cobra), así que se parece más a tu factura.
+- En Conocimiento verás su tamaño, y un aviso si es tan largo que encarece cada respuesta.
+
 ## 2026-10-16 · Avisos de actualización por email
 - Cuando haya una versión nueva, te llegará un email con lo que trae y cómo instalarla.
 - En tu panel → Ajustes → Actualizaciones verás también «Qué trae la versión nueva».

@@ -59,7 +59,7 @@ export async function crearConocimientoConIA(respuestas) {
   ].join("\n");
   const material = respuestasEnTexto(respuestas);
   let coste = 0;
-  const resultados = await Promise.all(
+  const resultados = await Promise.allSettled(
     SECCIONES.map(async ({ archivo, nombre }) => {
       const { texto, coste: c } = await pedirTexto({
         model: idModelo("opus"),
@@ -84,8 +84,13 @@ Reglas:
       return [archivo, texto];
     }),
   );
-  for (const [archivo, texto] of resultados) if (texto?.trim().startsWith("#")) guardarSeccion(archivo, texto);
-  return { coste, secciones: resultados.length };
+  // Se guardan las secciones que salieron bien aunque alguna falle (y se cuenta todo lo que se ha cobrado)
+  const bien = resultados.filter((r) => r.status === "fulfilled").map((r) => r.value);
+  for (const [archivo, texto] of bien) if (texto?.trim().startsWith("#")) guardarSeccion(archivo, texto);
+  const fallo = resultados.find((r) => r.status === "rejected");
+  if (fallo)
+    throw Object.assign(new Error(`${SECCIONES.length - bien.length} de ${SECCIONES.length} secciones no se han podido redactar (${fallo.reason?.message}). Las demás ya están guardadas: vuelve a intentarlo.`), { coste });
+  return { coste, secciones: bien.length };
 }
 
 // ---------- Educar desde una conversación ----------
@@ -150,7 +155,7 @@ Cómo proponer cambios:
   try {
     propuesta = JSON.parse(texto);
   } catch {
-    throw new Error("La IA no ha devuelto una propuesta válida. Prueba a explicarlo con otras palabras.");
+    throw Object.assign(new Error("La IA no ha devuelto una propuesta válida. Prueba a explicarlo con otras palabras."), { coste });
   }
   const id = crypto.randomBytes(6).toString("hex");
   const guardada = { id, convId: conv.id, comentario, ...propuesta, fecha: new Date().toISOString() };
@@ -232,6 +237,7 @@ export const AJUSTES_EDITABLES = {
   avisarActualizaciones: "Avisar por email de cada versión nueva y lo que trae (si/no)",
   listaBlanca: "Cuentas de prueba, sin @, separadas por comas",
   modelo: "Modelo de IA: opus o sonnet",
+  modeloSeguimientos: "Modelo para los seguimientos: sonnet (más barato, recomendado) u opus",
   esfuerzo: "Cuánto piensa: low, medium o high",
 };
 
@@ -323,7 +329,7 @@ Tu trabajo:
   try {
     salida = JSON.parse(texto);
   } catch {
-    throw new Error("La IA no ha devuelto una respuesta válida. Prueba otra vez.");
+    throw Object.assign(new Error("La IA no ha devuelto una respuesta válida. Prueba otra vez."), { coste });
   }
   let propuestaId = null;
   if (salida.cambios.length || salida.ajustes.length) {

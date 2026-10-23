@@ -6,6 +6,7 @@ import { fichaEnTexto, nombreAutor, nombresMetricas } from "../avisos/emails.js"
 import { enListaBlanca } from "../motor.js";
 import { PREGUNTAS, cambioAplicable, AJUSTES_EDITABLES } from "./educar.js";
 import { estadoActualizacion, corta } from "../actualizacion.js";
+import { construirPrompt } from "../cerebro/prompt.js";
 import { LISTAS_EDITABLES, listasCrm } from "../crm/opciones.js";
 
 export const esc = (t) =>
@@ -139,11 +140,35 @@ ${
 <button class="principal" name="activo" value="no" onclick="return confirm('${asistente()} empezará a contestar a TODOS los que escriban a tu Instagram. ¿Seguro?')">Activar para todos</button>`
     : `<span>✅ <b>ACTIVO PARA TODOS</b> los que escriben a @${esc(negocio.cuentaInstagram)}.</span><button name="activo" value="si">Volver a modo prueba</button>`
 }</form></div>
-<div class="tarjeta metricas"><b>Últimos 7 días</b><br>${metricas}<span>Gasto IA: <b>${coste.toFixed(2)} $</b></span></div>
+<div class="tarjeta metricas"><b>Últimos 7 días</b><br>${metricas}<span>Gasto IA: <b>${coste.toFixed(2)} $</b></span>${desgloseGasto(almacen)}</div>
 <h2>Conversaciones</h2>
 <table><tr><th>Contacto</th><th>Estado</th><th>Última actividad</th></tr>${filas || "<tr><td colspan=3>Todavía no hay conversaciones.</td></tr>"}</table>`,
     "/panel",
   );
+}
+
+const NOMBRES_GASTO = { respuestas: "Respuestas a leads", seguimientos: "Seguimientos", panel: "Panel (Probar, Asistente, Enseñar, cuestionario)", informes: "Informes", otros: "Otros" };
+
+function desgloseGasto(almacen) {
+  const partes = almacen.costePorTipo(Date.now() - 7 * 86400000);
+  const lineas = Object.keys(NOMBRES_GASTO)
+    .filter((k) => partes[k])
+    .map((k) => `<span>${esc(NOMBRES_GASTO[k])}: ${partes[k].toFixed(2)} $</span>`);
+  return lineas.length ? `<br><span class="ayuda">En qué se ha ido:</span> ${lineas.join("")}` : "";
+}
+
+/** Tamaño del texto que lee la IA en cada respuesta. Si es muy largo, cada lectura completa sale más cara. */
+export function tamanoConocimiento() {
+  const tokens = Math.round(construirPrompt().length / 3.5);
+  return { tokens, costeLectura: (tokens * 8) / 1e6, largo: tokens > 30000 };
+}
+
+function avisoTamano() {
+  const t = tamanoConocimiento();
+  const texto = `Tamaño actual: unos ${t.tokens.toLocaleString("es-ES")} tokens. Cuando la IA tiene que volver a leerlo entero (por ejemplo, tras una hora sin mensajes) cuesta unos ${t.costeLectura.toFixed(2)} $ con Opus.`;
+  return t.largo
+    ? `<div class="tarjeta pausa">⚠️ <b>Tu conocimiento es muy largo.</b> ${esc(texto)} Para abaratar cada respuesta, quita lo repetido o lo que no sirve para vender por MD (textos pegados de documentos, ejemplos muy largos…). Puedes pedírselo al Asistente: «resume mi conocimiento sin perder nada importante».</div>`
+    : `<p class="ayuda">${esc(texto)}</p>`;
 }
 
 // ---------- Conversación real ----------
@@ -220,6 +245,7 @@ export function htmlConocimiento(mensaje = "") {
     `<h1>Conocimiento de ${asistente()}</h1>
 ${mensaje ? `<div class="tarjeta ok">${mensaje}</div>` : ""}
 <p>Es todo lo que ${asistente()} sabe de tu negocio y de cómo vendes. Lo que cambies aquí se aplica al momento en todas las conversaciones.</p>
+${avisoTamano()}
 <div class="fila"><a class="boton principal" href="/panel/crear">✨ Rellenarlo con IA (cuestionario)</a><a class="boton" href="/panel/prompt">Ver el texto completo que recibe la IA</a></div>
 <table>${filas}</table>
 <p class="ayuda">Consejo: no hace falta que lo escribas perfecto. Prueba a ${asistente()} en "Probar" y, cuando haga algo mal, usa "Enseñar a ${asistente()}": te propone el cambio exacto.</p>`,
@@ -386,6 +412,7 @@ ${campoTexto("productoBaratoEnlacePago", "Enlace de pago", "", "url")}
 <div class="tarjeta"><h2 style="margin-top:0">Pruebas e IA</h2>
 ${campoTexto("listaBlanca", "Cuentas de prueba (sin @, separadas por comas)", "En modo prueba solo responde a estas cuentas. Usa una cuenta secundaria tuya. Desde ellas puedes escribir #reset para empezar de cero.")}
 ${campoOpciones("modelo", "Modelo de IA", [["opus", "Claude Opus (recomendado, ~0,03 $ por respuesta)"], ["sonnet", "Claude Sonnet (más barato, ~0,02 $ por respuesta)"]])}
+${campoOpciones("modeloSeguimientos", "Modelo para los seguimientos", [["sonnet", "Claude Sonnet (recomendado: ~0,01 $ por seguimiento)"], ["opus", "Claude Opus (algo más fino, ~0,03 $ por seguimiento)"]], "Los mensajes cortos de «Hola Laura, pudiste ver mi mensaje?». Las respuestas a los leads siempre usan el modelo de arriba.")}
 ${campoOpciones("esfuerzo", "Cuánto piensa antes de responder", [["medium", "Normal (recomendado)"], ["low", "Poco (más rápido y barato)"], ["high", "Mucho (más lento y caro)"]])}
 ${campoSiNo("actualizacionesAutomaticas", "Instalar solo las versiones nuevas de madrugada (3:00-5:00)", "Recomendado. Necesita la variable TOKEN_RAILWAY (ver Actualizaciones, más abajo).")}
 <input type="hidden" name="modoPrueba" value="${negocio.modoPrueba ? "si" : "no"}">

@@ -87,7 +87,8 @@ test("NOVEDADES.md: se leen las entradas y se detectan solo las que no tiene la 
   assert.deepEqual(novedadesNuevas(remotas, locales).map((n) => n.titulo), ["Buscador de conversaciones"]);
   assert.match(novedadesNuevas(remotas, locales)[0].texto, /Explicación de Buscador/);
   // Instalación antigua sin NOVEDADES.md: por fecha
-  assert.deepEqual(novedadesNuevas(remotas, null, "2026-10-16T15:58:13Z").map((n) => n.titulo), ["Buscador de conversaciones"]);
+  const masReciente = locales[0].fecha; // instalada el día de la última entrada que ya tenía
+  assert.deepEqual(novedadesNuevas(remotas, null, `${masReciente}T15:58:13Z`).map((n) => n.titulo), ["Buscador de conversaciones"]);
   assert.deepEqual(novedadesNuevas(remotas, null, ""), []);
 });
 

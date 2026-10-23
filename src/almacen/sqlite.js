@@ -31,6 +31,10 @@ export class AlmacenSqlite {
       CREATE TABLE IF NOT EXISTS ajustes (clave TEXT PRIMARY KEY, valor TEXT);
       CREATE TABLE IF NOT EXISTS costes (usd REAL, fecha INTEGER);
     `);
+    // Instalaciones anteriores: la tabla de costes no tenía el tipo de gasto (respuestas, seguimientos, panel…)
+    if (!this.db.prepare("PRAGMA table_info(costes)").all().some((c) => c.name === "tipo")) {
+      this.db.exec("ALTER TABLE costes ADD COLUMN tipo TEXT");
+    }
   }
 
   // ---------- Conversaciones ----------
@@ -132,8 +136,18 @@ export class AlmacenSqlite {
     return Object.fromEntries(filas.map((f) => [f.tipo, Number(f.n)]));
   }
 
-  registrarCoste(usd) {
-    this.db.prepare("INSERT INTO costes VALUES (?, ?)").run(usd, Date.now());
+  /** @param {"respuestas"|"seguimientos"|"panel"|"informes"} tipo en qué se ha gastado */
+  registrarCoste(usd, tipo = "otros") {
+    if (!usd) return;
+    this.db.prepare("INSERT INTO costes (usd, fecha, tipo) VALUES (?, ?, ?)").run(usd, Date.now(), tipo);
+  }
+
+  /** { respuestas: 12.3, seguimientos: 4.1, … } entre dos fechas */
+  costePorTipo(desde, hasta = Date.now()) {
+    const filas = this.db
+      .prepare("SELECT COALESCE(tipo, 'otros') AS tipo, SUM(usd) AS s FROM costes WHERE fecha >= ? AND fecha < ? GROUP BY 1")
+      .all(desde, hasta);
+    return Object.fromEntries(filas.map((f) => [f.tipo, Number(f.s)]));
   }
 
   sumarCoste(desde, hasta = Date.now()) {

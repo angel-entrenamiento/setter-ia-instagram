@@ -6,7 +6,7 @@ import { negocio, dueno, hayProductoBarato } from "./negocio.js";
 import { conversacionNueva } from "./almacen/conversaciones.js";
 import { pedirTurno, pedirTexto, ErrorModelo } from "./cerebro/llm.js";
 import { aplicarReglas, hayBloqueo } from "./cerebro/reglas.js";
-import { construirPrompt } from "./cerebro/prompt.js";
+import { construirPromptSeguimiento } from "./cerebro/prompt.js";
 import { construirEmail, construirEmailPreferencia } from "./avisos/emails.js";
 
 // Pausas que solo levanta el dueño con IA_ON (o reset en pruebas)
@@ -296,6 +296,7 @@ async function generarTurno(conv, resultado, { modelo, esfuerzo }) {
       r = await pedirTurno(mensajes, construirContexto(conv, avisosExtra), { modelo, esfuerzo });
     } catch (error) {
       if (!(error instanceof ErrorModelo)) throw error;
+      resultado.coste += error.coste ?? 0; // Anthropic lo cobra aunque la respuesta no sirva
       resultado.problemas.push({ tipo: error.tipo, detalle: error.message, bloqueante: true });
       if (["clave", "red", "limite"].includes(error.tipo)) break; // reintentar no ayuda
       continue;
@@ -404,7 +405,7 @@ export function soloRecurso(conv) {
  * Redacta un seguimiento personalizado. n=0 (8 h) y n=1 (24 h) los envía el asistente;
  * n=2 y n=3 se incluyen en el email diario para que el dueño los envíe a mano.
  */
-export async function redactarSeguimiento(conv, n, { modelo = config.modelo } = {}) {
+export async function redactarSeguimiento(conv, n, { modelo = negocio.modeloSeguimientos || "sonnet" } = {}) {
   const asistente = negocio.nombreAsistente;
   const sobreRecurso = soloRecurso(conv)
     ? " La persona nunca ha escrito: solo le llegó el recurso automático tras comentar. El mensaje gira en torno a eso (si pudo verlo, si le sirvió), sin preguntas de cualificación. Si el nombre del recurso no deja claro qué era (vídeo, guía, plan…), no lo inventes: di \"lo que te mandé\"."
@@ -426,7 +427,8 @@ export async function redactarSeguimiento(conv, n, { modelo = config.modelo } = 
     .join("\n");
   const { texto, coste } = await pedirTexto({
     model: idModelo(modelo),
-    system: [{ type: "text", text: construirPrompt(), cache_control: { type: "ephemeral", ttl: "1h" } }],
+    // Prompt corto (marca y voz + reglas), no todo el conocimiento: un seguimiento cuesta ~0,01 $ en vez de ~0,20 $
+    system: construirPromptSeguimiento(),
     mensajes: [
       {
         role: "user",

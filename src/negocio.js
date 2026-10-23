@@ -16,6 +16,7 @@ export const NEGOCIO_POR_DEFECTO = Object.freeze({
   paisPrincipal: "España",
   modelo: config.modelo,
   esfuerzo: config.esfuerzo,
+  modeloSeguimientos: "sonnet",
   modoPrueba: config.modoPrueba,
   listaBlanca: config.listaBlanca.join(", "),
   decirVirtualAlPresentarse: true,
@@ -90,6 +91,7 @@ function aplicar(datos) {
   config.listaBlanca = lista(negocio.listaBlanca);
   config.modelo = ["opus", "sonnet"].includes(negocio.modelo) ? negocio.modelo : "opus";
   config.esfuerzo = ["low", "medium", "high"].includes(negocio.esfuerzo) ? negocio.esfuerzo : "medium";
+  if (!["opus", "sonnet"].includes(negocio.modeloSeguimientos)) negocio.modeloSeguimientos = "sonnet";
   config.emailAvisos = String(negocio.emailAvisos ?? "").trim();
   config.zonaHoraria = negocio.zonaHoraria || "Europe/Madrid";
   config.versionConocimiento++;

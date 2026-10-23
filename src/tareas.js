@@ -63,7 +63,7 @@ export function crearTareas({ almacen, manychat, enviarEmail, crm = null, log = 
     try {
       if (!(await etiquetasPermiten(conv))) return;
       const { texto: borrador, coste } = await redactarSeguimiento(conv, n);
-      almacen.registrarCoste(coste);
+      almacen.registrarCoste(coste, "seguimientos");
       const texto = revisarSeguimiento(borrador);
       conv.seguimientos[`s${n}`] = new Date().toISOString();
       if (!texto) {
@@ -118,7 +118,7 @@ export function crearTareas({ almacen, manychat, enviarEmail, crm = null, log = 
       if (!numero) continue;
       try {
         const { texto, coste } = await redactarSeguimiento(conv, numero);
-        almacen.registrarCoste(coste);
+        almacen.registrarCoste(coste, "seguimientos");
         conv.seguimientos[`s${numero}`] = new Date().toISOString();
         almacen.guardar(conv);
         lista.push({ conv, numero, texto });
@@ -142,7 +142,7 @@ export function crearTareas({ almacen, manychat, enviarEmail, crm = null, log = 
     const hasta = new Date();
     const desde = new Date(hasta - 7 * 24 * HORA);
     const { email, coste } = await construirInformeDudas(almacen.todas(), { desde, hasta });
-    almacen.registrarCoste(coste);
+    almacen.registrarCoste(coste, "informes");
     await enviarEmail(email);
   }
 

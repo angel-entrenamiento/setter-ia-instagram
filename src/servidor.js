@@ -131,7 +131,7 @@ export function crearServidor({ almacen, manychat: mc = manychat, enviarEmail: e
     }
     almacen.guardar(conv);
     if (r) {
-      if (r.coste) almacen.registrarCoste(r.coste);
+      if (r.coste) almacen.registrarCoste(r.coste, "panel");
       if (r.respuestas?.length && !almacen.ajuste("probado_panel")) almacen.fijarAjuste("probado_panel", new Date().toISOString());
       const { salida, problemas, emails, coste, ignorado, error } = r;
       almacen.fijarAjuste("probar_ultimo", JSON.stringify({ salida, problemas, emails, coste, ignorado, error }));
@@ -245,9 +245,10 @@ export function crearServidor({ almacen, manychat: mc = manychat, enviarEmail: e
           guardarNegocio(almacen, { ...negocio, bienvenidaManual: respuestas.bienvenida.trim() });
         try {
           const { coste } = await crearConocimientoConIA(respuestas);
-          almacen.registrarCoste(coste);
+          almacen.registrarCoste(coste, "panel");
         } catch (error) {
           console.error(`[panel] crear conocimiento: ${error.message}`);
+          almacen.registrarCoste(error.coste, "panel");
           return html(res, paginaError("No se ha podido crear el conocimiento", error.message, "/panel/crear"), 500);
         }
         return redirigir(res, "/panel/conocimiento?m=creado");
@@ -263,10 +264,11 @@ export function crearServidor({ almacen, manychat: mc = manychat, enviarEmail: e
       if (!conv || !comentario) return redirigir(res, vuelta);
       try {
         const propuesta = await proponerCorreccion(almacen, conv, comentario);
-        almacen.registrarCoste(propuesta.coste);
+        almacen.registrarCoste(propuesta.coste, "panel");
         return redirigir(res, `/panel/propuesta/${propuesta.id}`);
       } catch (error) {
         console.error(`[panel] educar: ${error.message}`);
+        almacen.registrarCoste(error.coste, "panel");
         return html(res, paginaError("No se ha podido preparar la corrección", error.message, vuelta), 500);
       }
     }
@@ -292,10 +294,11 @@ export function crearServidor({ almacen, manychat: mc = manychat, enviarEmail: e
         const archivos = (Array.isArray(datos.archivos) ? datos.archivos : []).filter((a) => a?.nombre && a?.datos).slice(0, 10);
         try {
           const r = await conversarConAsistente(almacen, { mensaje: String(datos.mensaje ?? "").trim().slice(0, 20000), archivos });
-          almacen.registrarCoste(r.coste);
+          almacen.registrarCoste(r.coste, "panel");
           return responder(res, 200, { ok: true, propuestaId: r.propuestaId });
         } catch (error) {
           console.error(`[panel] asistente: ${error.message}`);
+          almacen.registrarCoste(error.coste, "panel");
           return responder(res, 500, { error: error.message.slice(0, 300) });
         }
       }

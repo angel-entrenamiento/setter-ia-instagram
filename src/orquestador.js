@@ -314,7 +314,7 @@ export function crearOrquestador({ almacen, manychat, enviarEmail, crm = null, l
   }
 
   function registrarMetricas(conv, r, yaHabiaRespondido) {
-    if (r.coste) almacen.registrarCoste(r.coste);
+    if (r.coste) almacen.registrarCoste(r.coste, "respuestas");
     if (r.reset) return;
     if (r.respuestas.length && !yaHabiaRespondido) almacen.registrarEvento("atendida", conv.id);
     const s = r.salida;

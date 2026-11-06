@@ -2,6 +2,11 @@
 
 Lo que trae cada versión, de la más nueva a la más antigua. Cuando hay una entrada nueva, tu setter te avisa por email y la verás en tu panel → Ajustes → Actualizaciones.
 
+## 2026-11-05 · Un solo seguimiento, a las 24 horas
+- Si un lead deja de contestar, tu setter le escribe una única vez, a las 24 horas (justo antes de que Instagram deje de permitirlo). Ya no hay seguimiento a las 8 horas.
+- Ya no se envía el email diario con los seguimientos de los días 3 y 7.
+- Menos mensajes insistentes para tus leads y menos gasto de IA.
+
 ## 2026-10-20 · Menos gasto de IA
 - Los seguimientos («Hola Laura, pudiste ver mi mensaje?») ahora cuestan alrededor de 0,01 $ en vez de unos 0,20 $: ya no leen todo tu conocimiento, solo tu forma de escribir y la conversación, y usan Claude Sonnet. Si prefieres Opus, cámbialo en Ajustes → Modelo para los seguimientos.
 - Las respuestas a tus leads no cambian: siguen usando tu modelo y todo tu conocimiento.

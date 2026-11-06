@@ -68,7 +68,7 @@ import { negocio } from "../src/negocio.js";
 import { config as cfg } from "../src/config.js";
 
 const LOCAL = fs.readFileSync(new URL("../NOVEDADES.md", import.meta.url), "utf8");
-const conEntrada = (titulo, fecha = "2026-11-02") => LOCAL.replace("\n## ", `\n## ${fecha} · ${titulo}\n- Explicación de ${titulo}.\n\n## `);
+const conEntrada = (titulo, fecha = "2099-11-02") => LOCAL.replace("\n## ", `\n## ${fecha} · ${titulo}\n- Explicación de ${titulo}.\n\n## `);
 function conNovedades(remoto, sha = "nueva123") {
   return async (url, opciones = {}) => {
     peticiones.push({ url });

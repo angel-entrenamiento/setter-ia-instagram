@@ -1,4 +1,4 @@
-// Seguimientos automáticos (8 h y ~24 h) y contactos que llegan por un disparador de ManyChat. Sin servicios reales.
+// Seguimiento automático (solo a las ~24 h) y contactos que llegan por un disparador de ManyChat. Sin servicios reales.
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { config } from "../src/config.js";
@@ -37,25 +37,32 @@ function conversacionSinRespuesta(horas, extra = {}) {
   return conv;
 }
 
-const deDia = () => {
-  const { hora } = ahoraLocal();
-  return hora >= 9 && hora < 22;
-};
+test("no hay seguimiento de las 8 h: antes de las 23 h no envía nada", async () => {
+  for (const h of [5, 8.2, 15]) {
+    almacen = new AlmacenSqlite(":memory:");
+    tareas = crearTareas({ almacen, manychat, enviarEmail: async () => {}, log });
+    conversacionSinRespuesta(h);
+    await tareas.seguimientosAutomaticos();
+  }
+  assert.equal(enviados.length, 0);
+});
 
-test("a las 8 h sin respuesta envía el primer seguimiento (si es de día) y no lo repite", async (t) => {
-  if (!deDia()) return t.skip("de noche no se envía el de las 8 h");
-  conversacionSinRespuesta(8.2);
+test("el de las 24 h se envía una sola vez", async () => {
+  conversacionSinRespuesta(23.2);
   await tareas.seguimientosAutomaticos();
   await tareas.seguimientosAutomaticos();
   assert.equal(enviados.length, 1);
-  assert.match(pedidos[0], /8 horas/);
-  assert.ok(almacen.obtener("c1").seguimientos.s0);
+  assert.match(pedidos[0], /24 horas/);
 });
 
-test("antes de 8 h no envía nada", async () => {
-  conversacionSinRespuesta(5);
-  await tareas.seguimientosAutomaticos();
-  assert.equal(enviados.length, 0);
+test("ya no existe el email diario de seguimientos (ni se redactan)", async () => {
+  const emails = [];
+  const t2 = crearTareas({ almacen, manychat, enviarEmail: async (e) => void emails.push(e), log });
+  assert.equal(t2.emailSeguimientos, undefined);
+  conversacionSinRespuesta(80);
+  almacen.fijarAjuste("ultimo_diario", "");
+  await t2.cadaCincoMinutos();
+  assert.equal(emails.filter((e) => e.etiqueta === "SEGUIMIENTOS").length, 0);
 });
 
 test("a las 22 h todavía no envía el de las 24 h (nunca antes de 23 h)", async () => {
@@ -66,7 +73,7 @@ test("a las 22 h todavía no envía el de las 24 h (nunca antes de 23 h)", async
   assert.equal(enviados.length, 0);
 });
 
-test("a las 23 h envía el de las 24 h aunque ya se enviara el de las 8 h", async () => {
+test("a las 23 h envía el de las 24 h (también a quien recibió uno de 8 h con la versión anterior)", async () => {
   const conv = conversacionSinRespuesta(23.1);
   conv.seguimientos.s0 = new Date(Date.now() - 14 * HORA).toISOString();
   almacen.guardar(conv);
@@ -81,9 +88,8 @@ test("pasadas 23,5 h ya no escribe (ventana de 24 h de Meta)", async () => {
   assert.equal(enviados.length, 0);
 });
 
-test("no escribe si en ManyChat tiene la etiqueta ALUMNO o IA_PAUSA", async (t) => {
-  if (!deDia()) return t.skip("de noche no se envía el de las 8 h");
-  conversacionSinRespuesta(8.5);
+test("no escribe si en ManyChat tiene la etiqueta ALUMNO o IA_PAUSA", async () => {
+  conversacionSinRespuesta(23.2);
   etiquetas["1"] = ["IA_PAUSA"];
   await tareas.seguimientosAutomaticos();
   assert.equal(enviados.length, 0);
@@ -105,24 +111,18 @@ test("disparador de ManyChat a un ALUMNO: no se le hará seguimiento", async () 
   assert.equal(conv.pausa.motivo, "alumno");
 });
 
-test("disparador: el seguimiento habla del recurso y no entra en el email del dueño", async (t) => {
+test("disparador: el seguimiento de las 24 h habla del recurso", async () => {
   const conv = await orq.registrarContactoManychat({ subscriberId: "79", origen: "recurso", recurso: "GUIA" });
-  conv.ultimoMensajeLeadAt = new Date(Date.now() - 8.5 * HORA).toISOString();
+  conv.ultimoMensajeLeadAt = new Date(Date.now() - 23.2 * HORA).toISOString();
   almacen.guardar(conv);
-  if (deDia()) {
-    await tareas.seguimientosAutomaticos();
-    assert.match(pedidos[0], /solo le llegó el recurso automático/);
-  }
-  conv.ultimoMensajeLeadAt = new Date(Date.now() - 80 * HORA).toISOString();
-  almacen.guardar(conv);
-  assert.equal(await tareas.emailSeguimientos(), 0);
+  await tareas.seguimientosAutomaticos();
+  assert.match(pedidos[0], /solo le llegó el recurso automático/);
 });
 
-test("el seguimiento le dice a la IA el tiempo real que ha pasado", async (t) => {
-  if (!deDia()) return t.skip("de noche no se envía el de las 8 h");
-  conversacionSinRespuesta(8.3);
+test("el seguimiento le dice a la IA el tiempo real que ha pasado", async () => {
+  conversacionSinRespuesta(23.2);
   await tareas.seguimientosAutomaticos();
-  assert.match(pedidos[0], /han pasado 8 horas/);
+  assert.match(pedidos[0], /han pasado 23 horas/);
   assert.match(pedidos[0], /NO uses "estos días"/);
 });
 

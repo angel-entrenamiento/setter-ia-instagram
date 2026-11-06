@@ -70,7 +70,7 @@ Cuando estés contento con las pruebas: panel → **Inicio** → **Activar para 
 ---
 
 ## El día a día
-- **Emails que recibirás**: `[AGENDAR]` (te toca cerrar día y hora de la llamada), `[AUDIO]` (escúchalo, contesta tú y apunta en una línea qué dijo con el enlace del email), `[ALERTA]`, `[HUMANO]`, `[PAGO]`, `[ERROR]`, y cada mañana `[SEGUIMIENTOS]` con mensajes ya redactados para que los envíes tú.
+- **Emails que recibirás**: `[AGENDAR]` (te toca cerrar día y hora de la llamada), `[AUDIO]` (escúchalo, contesta tú y apunta en una línea qué dijo con el enlace del email), `[ALERTA]`, `[HUMANO]`, `[PAGO]` y `[ERROR]`. Si un lead deja de contestar, tu setter le escribe una vez a las 24 h.
 - **Quedarte tú una conversación**: etiqueta **IA_PAUSA** en ManyChat (o el botón Pausar del panel). Para devolvérsela: **IA_ON**.
 - **Clientes actuales**: etiqueta **ALUMNO** y el setter nunca les contesta (ni les hace seguimientos).
 - **Otras personas a las que no debe contestar** (clientes antiguos, amigos, colaboradores…): en **Ajustes → "Etiquetas de ManyChat a las que NO contesta"** añade las tuyas separadas por comas (por ejemplo `ALUMNO, CLIENTES, AMIGOS`) y pónselas a esos contactos en ManyChat. Puedes elegir si quieres un email cuando te escriban.

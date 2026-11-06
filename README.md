@@ -14,7 +14,7 @@ Un asistente con IA que contesta los MD de tu Instagram como lo haría un buen s
 - Propone la llamada solo a quien está cualificado y te pasa la conversación (email `[AGENDAR]`).
 - Opcional: vende un producto barato enviando su enlace de pago.
 - Te avisa de audios, señales de alarma, personas que piden hablar contigo y errores.
-- Seguimientos automáticos a las 8 h y 24 h, y te redacta los de los días 3 y 7.
+- Un seguimiento automático a las 24 h a quien deja de contestar.
 - Informe semanal de dudas de tus leads con ideas de contenido.
 
 ## Reglas de seguridad que aplica el código (aunque la IA se equivoque)

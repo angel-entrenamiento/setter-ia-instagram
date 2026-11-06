@@ -65,7 +65,7 @@ function lineasChat(conv) {
   return conv.historial
     .map(
       (m) =>
-        `<div class="${esc(m.rol)}"><small>${esc(fecha(m.fecha))}${m.seguimiento !== undefined ? ` · seguimiento ${m.seguimiento === 0 ? "8 h" : "24 h"}` : ""}</small> <b>${esc(nombreAutor(m.rol))}:</b> ${m.tipo !== "texto" ? `[${esc(m.tipo)}] ` : ""}${esc(m.resumen ? `${m.texto} — ${m.resumen}` : m.texto)}</div>`,
+        `<div class="${esc(m.rol)}"><small>${esc(fecha(m.fecha))}${m.seguimiento !== undefined ? ` · seguimiento ${m.seguimiento === 0 ? "8 h" : m.seguimiento === 1 ? "24 h" : m.seguimiento}` : ""}</small> <b>${esc(nombreAutor(m.rol))}:</b> ${m.tipo !== "texto" ? `[${esc(m.tipo)}] ` : ""}${esc(m.resumen ? `${m.texto} — ${m.resumen}` : m.texto)}</div>`,
     )
     .join("");
 }
@@ -394,14 +394,13 @@ ${campoArea("bienvenidaManual", "Tu bienvenida manual a seguidores nuevos (opcio
 ${campoTexto("emailAvisos", "Email para los avisos", "Tiene que ser EL MISMO email con el que creaste la cuenta de Resend (si no, Resend no los entrega).", "email")}
 ${campoSiNo("avisarEtiquetasNoResponder", "Avisarme por email cuando me escriba alguien con una etiqueta de «no contestar» (como mucho una vez cada 12 h por persona)")}
 ${campoSiNo("avisarActualizaciones", "Avisarme por email cuando haya una versión nueva, con lo que trae")}
-${campoSiNo("emailSeguimientos", "Email diario (9:00) con los seguimientos de los días 3 y 7 ya redactados para que los envíes tú")}
 ${campoSiNo("resumenSemanal", "Resumen semanal los lunes")}
 ${campoSiNo("informeDudas", "Informe de dudas e ideas de contenido los jueves (~0,05 $)")}
 </div>
 <div class="tarjeta"><h2 style="margin-top:0">Llamada y venta</h2>
 ${campoTexto("descripcionLlamada", "Qué es la llamada que propone", "Ej.: una videollamada gratuita y sin compromiso de 15-20 minutos por Google Meet")}
 ${campoSiNo("exigirDecisor", "Preguntar siempre quién decide el dinero antes de proponer la llamada (recomendado)")}
-${campoSiNo("seguimientosAutomaticos", "Seguimientos automáticos a las 8 h y a las 24 h si el lead deja de contestar")}
+${campoSiNo("seguimientosAutomaticos", "Seguimiento automático a las 24 h si el lead deja de contestar")}
 <h2>Producto de venta directa por MD (opcional)</h2>
 <p class="ayuda">Un producto barato que el asistente puede vender directamente enviando el enlace de pago. Sus criterios (para quién es y para quién no) van en Conocimiento → Productos.</p>
 ${campoSiNo("productoBaratoActivo", "Tengo un producto de venta directa")}
@@ -462,7 +461,7 @@ export function htmlManychat(almacen) {
 <li>Escribe <span class="copiar">#reset</span> para empezar de cero las veces que quieras.</li>
 <li>Cuando todo vaya bien, en <a href="/panel">Inicio</a> pulsa «Activar para todos».</li></ol></div>
 <details class="tarjeta"><summary><b>Opcional: seguimientos cuando alguien comenta una palabra clave</b></summary>
-<p>Si tienes automatizaciones de comentarios que envían un recurso por MD, ${asistente()} puede hacer los seguimientos a las 8 h y 24 h si no contesta. En ese flujo, <b>después</b> de que la persona pulse el botón del mensaje, añade otra Petición externa:</p>
+<p>Si tienes automatizaciones de comentarios que envían un recurso por MD, ${asistente()} puede hacerle el seguimiento de las 24 h si no contesta. En ese flujo, <b>después</b> de que la persona pulse el botón del mensaje, añade otra Petición externa:</p>
 <ul><li>POST <span class="copiar">${esc(config.urlPublica)}/manychat/contacto</span></li><li>Misma cabecera X-Token</li><li>Cuerpo: <span class="copiar">${esc(cuerpoRecurso)}</span></li></ul>
 <p class="ayuda">Tiene que ser después del botón: Instagram solo deja escribir a quien ha interactuado en las últimas 24 h.</p></details>`,
     "/panel/manychat",

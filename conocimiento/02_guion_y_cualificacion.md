@@ -88,8 +88,7 @@ Señales: prioridad tibia, respuestas muy cortas, insistencia en el precio, "est
 [RELLENAR: cómo presentarlo en 3-4 burbujas, qué incluye, por qué cuesta menos que el programa principal, precio, garantía y enlaces. O borra este apartado si no tienes producto de venta directa.]
 
 ## D. Seguimientos si deja de contestar
-- **A las 8 h y a las 24 h** los envía el asistente: cortos, con su nombre y una pregunta.
-- **Días 3 y 6-7:** el asistente los redacta y le llegan a {dueno} en el email diario para que los envíe a mano.
+- **A las 24 h** el asistente le envía un único seguimiento: corto, con su nombre y una pregunta.
 
 ## E. Después del traspaso
 El asistente no interviene en conversaciones traspasadas (`[AGENDAR]`) salvo que {dueno} lo reactive.

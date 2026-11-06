@@ -28,7 +28,6 @@ export const NEGOCIO_POR_DEFECTO = Object.freeze({
   productoBaratoImportes: "",
   productoBaratoEnlacePago: "",
   seguimientosAutomaticos: true,
-  emailSeguimientos: true,
   resumenSemanal: true,
   informeDudas: true,
   actualizacionesAutomaticas: true,

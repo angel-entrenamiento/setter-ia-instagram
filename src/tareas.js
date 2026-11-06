@@ -1,11 +1,11 @@
-// Tareas programadas: seguimientos, email diario de seguimientos (9:00), resumen semanal (lunes 9:00) y limpieza RGPD.
+// Tareas programadas: seguimiento de las 24 h, INBOUND del CRM, resumen semanal (lunes 9:00), informe de dudas (jueves) y limpieza RGPD.
 import { config } from "./config.js";
 import { negocio, tieneEtiquetaNoResponder, nombreEtiqueta } from "./negocio.js";
 import { licenciaPermite } from "./licencia.js";
-import { admiteSeguimiento, redactarSeguimiento, enListaBlanca, aplicarEtiqueta, soloRecurso } from "./motor.js";
+import { admiteSeguimiento, redactarSeguimiento, enListaBlanca, aplicarEtiqueta } from "./motor.js";
 import { revisarSeguimiento } from "./cerebro/reglas.js";
 import { construirInformeDudas } from "./avisos/informeDudas.js";
-import { construirEmailSeguimientos, construirEmailResumenSemanal } from "./avisos/emails.js";
+import { construirEmailResumenSemanal } from "./avisos/emails.js";
 
 const HORA = 3600000;
 const ORIGENES_INBOUND = ["espontaneo", "info", "precio", "anuncio", "historia"];
@@ -58,7 +58,7 @@ export function crearTareas({ almacen, manychat, enviarEmail, crm = null, log = 
     return false;
   }
 
-  /** Envía un seguimiento automático (n=0 a las 8 h, n=1 a las ~24 h). Se marca aunque falle, para no reintentarlo sin fin. */
+  /** Envía el seguimiento automático (n=1, a las ~24 h). Se marca aunque falle, para no reintentarlo sin fin. */
   async function enviarSeguimiento(conv, n) {
     try {
       if (!(await etiquetasPermiten(conv))) return;
@@ -83,51 +83,19 @@ export function crearTareas({ almacen, manychat, enviarEmail, crm = null, log = 
   }
 
   /**
-   * Seguimientos que envía el asistente, contando desde la última interacción del lead (Meta solo deja escribir 24 h):
-   * - a las 8 h (no de noche: de 22:00 a 9:00 espera a la mañana; si ya es tarde para eso, se lo salta),
-   * - entre las 23 y las 23,5 h, nunca antes (y al menos 4 h después del de las 8 h).
+   * Un único seguimiento cuando el lead deja de contestar: entre las 23 y las 23,5 h desde su último mensaje
+   * (Meta solo deja escribir hasta las 24 h). No hay seguimiento de las 8 h ni email diario de seguimientos.
    */
   async function seguimientosAutomaticos() {
     if (!negocio.seguimientosAutomaticos) return;
-    const { hora } = ahoraLocal();
-    const deNoche = hora >= 22 || hora < 9;
     for (const conv of almacen.todas()) {
       if (!candidata(conv)) continue;
       conv.seguimientos ??= {};
+      if (conv.seguimientos.s1) continue;
       const h = horasDesde(conv.ultimoMensajeLeadAt);
-      const { s0, s1 } = conv.seguimientos;
-      if (!s0 && !s1 && h >= config.seguimiento0Horas && h < config.seguimiento1Horas[0] - 4 && !deNoche) {
-        await enviarSeguimiento(conv, 0);
-        continue;
-      }
-      if (s1) continue;
       if (h < config.seguimiento1Horas[0] || h > config.seguimiento1Horas[1]) continue;
-      if (s0 && horasDesde(s0.replace(/^error /, "")) < 4) continue;
       await enviarSeguimiento(conv, 1);
     }
-  }
-
-  /** Email de las 9:00 con los seguimientos 2 (día 3) y 3 (día 6-7) redactados para el dueño. */
-  async function emailSeguimientos() {
-    if (!negocio.emailSeguimientos) return 0;
-    const lista = [];
-    for (const conv of almacen.todas()) {
-      if (!candidata(conv) || soloRecurso(conv)) continue; // a quien solo comentó no le escribe el dueño a mano
-      const h = horasDesde(conv.ultimoMensajeLeadAt);
-      const numero = h >= 72 && h < 144 && !conv.seguimientos?.s2 ? 2 : h >= 144 && h < 168 && !conv.seguimientos?.s3 ? 3 : null;
-      if (!numero) continue;
-      try {
-        const { texto, coste } = await redactarSeguimiento(conv, numero);
-        almacen.registrarCoste(coste, "seguimientos");
-        conv.seguimientos[`s${numero}`] = new Date().toISOString();
-        almacen.guardar(conv);
-        lista.push({ conv, numero, texto });
-      } catch (error) {
-        log.error(`[seguimiento ${numero}] ${conv.id}: ${error.message}`);
-      }
-    }
-    if (lista.length) await enviarEmail(construirEmailSeguimientos(lista));
-    return lista.length;
   }
 
   async function resumenSemanal() {
@@ -190,7 +158,6 @@ export function crearTareas({ almacen, manychat, enviarEmail, crm = null, log = 
     if (hora >= 9 && almacen.ajuste("ultimo_diario") !== dia) {
       almacen.fijarAjuste("ultimo_diario", dia);
       limpiezaDiaria();
-      await emailSeguimientos();
     }
     if (negocio.resumenSemanal && diaSemana === "Mon" && hora >= 9 && almacen.ajuste("ultimo_semanal") !== dia) {
       almacen.fijarAjuste("ultimo_semanal", dia);
@@ -202,5 +169,5 @@ export function crearTareas({ almacen, manychat, enviarEmail, crm = null, log = 
     }
   }
 
-  return { cadaCincoMinutos, seguimientosAutomaticos, kpiInbound, informeDudas, emailSeguimientos, resumenSemanal, limpiezaDiaria };
+  return { cadaCincoMinutos, seguimientosAutomaticos, kpiInbound, informeDudas, resumenSemanal, limpiezaDiaria };
 }

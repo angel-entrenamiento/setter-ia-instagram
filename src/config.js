@@ -57,8 +57,7 @@ export const config = {
   diasConservacion: Number(process.env.DIAS_CONSERVACION ?? 180),
   // Espera tras el último mensaje del lead por si manda varios seguidos (se descuenta del retraso humano)
   esperaAgruparSeg: Number(process.env.ESPERA_AGRUPAR_SEG ?? 25),
-  seguimiento0Horas: 8, // primer seguimiento: nunca antes de 8 h desde su último mensaje (no se envía de 22:00 a 9:00)
-  seguimiento1Horas: [23, 23.5], // segundo: entre 23 y 23,5 h desde su último mensaje (Meta corta a las 24 h)
+  seguimiento1Horas: [23, 23.5], // único seguimiento: entre 23 y 23,5 h desde su último mensaje (Meta corta a las 24 h)
 
   // Sube cada vez que cambian el conocimiento o los ajustes (el prompt se vuelve a construir)
   versionConocimiento: 0,

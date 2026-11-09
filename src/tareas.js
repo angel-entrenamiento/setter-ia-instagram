@@ -2,6 +2,7 @@
 import { config } from "./config.js";
 import { negocio, tieneEtiquetaNoResponder, nombreEtiqueta } from "./negocio.js";
 import { licenciaPermite } from "./licencia.js";
+import { loSigue } from "./seguidos.js";
 import { admiteSeguimiento, redactarSeguimiento, enListaBlanca, aplicarEtiqueta } from "./motor.js";
 import { revisarSeguimiento } from "./cerebro/reglas.js";
 import { construirInformeDudas } from "./avisos/informeDudas.js";
@@ -45,6 +46,7 @@ const horasDesde = (iso) => (iso ? (Date.now() - Date.parse(iso)) / HORA : Infin
 export function crearTareas({ almacen, manychat, enviarEmail, crm = null, log = console }) {
   function candidata(conv) {
     if (!conv.manychatId || conv.id.startsWith("panel:") || !admiteSeguimiento(conv)) return false;
+    if (loSigue(almacen, conv.igUsuario) && !enListaBlanca(conv)) return false; // a quien sigue el dueño no se le escribe
     return !config.modoPrueba || enListaBlanca(conv);
   }
 

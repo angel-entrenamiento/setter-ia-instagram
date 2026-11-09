@@ -13,6 +13,7 @@ import { procesarEvento, aplicarEtiqueta, reiniciar, enListaBlanca } from "./mot
 import { firmaCorrecta } from "./utilidades/enlaces.js";
 import { parsearCuerpoManychat } from "./utilidades/cuerpoManychat.js";
 import { crearCrm } from "./crm/index.js";
+import { extraerUsuarios, guardarSeguidos } from "./seguidos.js";
 import { cargarListasCrm, guardarListasCrm } from "./crm/opciones.js";
 import { paginaPrivacidad, paginaBorradoDatos } from "./paginasLegales.js";
 import { clienteAnthropic } from "./cerebro/llm.js";
@@ -188,6 +189,21 @@ export function crearServidor({ almacen, manychat: mc = manychat, enviarEmail: e
     }
 
     if (ruta === "/panel") return html(res, P.htmlInicio(almacen));
+
+    if (ruta === "/panel/seguidos") {
+      if (metodo !== "POST") return html(res, P.htmlSeguidos(almacen));
+      let datos;
+      try {
+        datos = JSON.parse((await leerCuerpo(req, 20_000_000)).toString("utf8") || "{}");
+      } catch {
+        return responder(res, 400, { error: "No se ha podido leer el archivo" });
+      }
+      const usuarios = extraerUsuarios(datos.texto);
+      if (!usuarios.length) return responder(res, 400, { error: "No he encontrado ningún usuario en ese archivo" });
+      guardarSeguidos(almacen, usuarios);
+      console.log(`[seguidos] lista actualizada: ${usuarios.length} cuentas`);
+      return responder(res, 200, { ok: true, total: usuarios.length });
+    }
 
     if (ruta === "/panel/modo" && metodo === "POST") {
       const form = await leerFormulario(req);

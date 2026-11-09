@@ -7,6 +7,7 @@ import { procesarEvento, anotarMensajeLead, aplicarEtiqueta, enListaBlanca, anot
 import { construirEmail } from "./avisos/emails.js";
 import { negocio, tieneEtiquetaNoResponder, nombreEtiqueta } from "./negocio.js";
 import { licenciaPermite } from "./licencia.js";
+import { loSigue } from "./seguidos.js";
 
 const TIPO_MOTOR = {
   texto: "texto",
@@ -192,6 +193,11 @@ export function crearOrquestador({ almacen, manychat, enviarEmail, crm = null, l
 
     const info = await manychat.infoContacto(subscriberId);
     if (config.modoPrueba && !config.listaBlanca.includes(info.igUsuario)) return null;
+    // Personas a las que sigue el dueño: el asistente no hace nada (salvo la cuenta de pruebas)
+    if (loSigue(almacen, info.igUsuario) && !config.listaBlanca.includes(info.igUsuario)) {
+      log.info?.(`[manychat] mensaje de alguien a quien sigue el dueño: no se contesta (contacto=…${String(subscriberId).slice(-4)})`);
+      return null;
+    }
     const conv =
       almacen.obtenerPorManychat(info.manychatId) ??
       (info.igId ? almacen.obtener(info.igId) : null) ??
@@ -237,7 +243,8 @@ export function crearOrquestador({ almacen, manychat, enviarEmail, crm = null, l
     try {
       const conv = almacen.obtener(convId);
       if (!conv || !conv.procesarEn) return;
-      if (!licenciaPermite()) {
+      if (!licenciaPermite() || (loSigue(almacen, conv.igUsuario) && !enListaBlanca(conv))) {
+        // Sin licencia, o el dueño empezó a seguirle mientras esperaba respuesta: no se contesta
         conv.procesarEn = null;
         conv.bandeja = [];
         return void almacen.guardar(conv);

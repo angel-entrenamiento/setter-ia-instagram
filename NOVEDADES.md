@@ -2,6 +2,12 @@
 
 Lo que trae cada versión, de la más nueva a la más antigua. Cuando hay una entrada nueva, tu setter te avisa por email y la verás en tu panel → Ajustes → Actualizaciones.
 
+## 2026-11-09 · No contesta a las personas que sigues
+- Nuevo en el panel: **👥 Personas que sigues** (enlace en la página de inicio). Sube ahí el archivo following.json que te da Instagram y tu setter dejará de contestar (y de hacer seguimientos) a las cuentas que tú sigues: amigos, familia, clientes, colaboradores… A todos los demás les contesta como siempre.
+- Cómo conseguir el archivo: Instagram → Centro de cuentas → Tu información y permisos → Descargar tu información → Algunos de tus datos → solo «Seguidores y seguidos» → formato JSON. Los pasos están en la propia página.
+- Si no subes ninguna lista, todo sigue igual. Tu cuenta de pruebas siempre recibe respuesta.
+- La lista no se actualiza sola: si empiezas a seguir a alguien nuevo, vuelve a subir el archivo.
+
 ## 2026-11-05 · Un solo seguimiento, a las 24 horas
 - Si un lead deja de contestar, tu setter le escribe una única vez, a las 24 horas (justo antes de que Instagram deje de permitirlo). Ya no hay seguimiento a las 8 horas.
 - Ya no se envía el email diario con los seguimientos de los días 3 y 7.

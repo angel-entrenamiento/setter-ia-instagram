@@ -8,6 +8,7 @@ import { PREGUNTAS, cambioAplicable, AJUSTES_EDITABLES } from "./educar.js";
 import { estadoActualizacion, corta } from "../actualizacion.js";
 import { construirPrompt } from "../cerebro/prompt.js";
 import { LISTAS_EDITABLES, listasCrm } from "../crm/opciones.js";
+import { listaSeguidos, fechaSeguidos } from "../seguidos.js";
 
 export const esc = (t) =>
   String(t ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -127,7 +128,7 @@ export function htmlInicio(almacen) {
   return pagina(
     `${negocio.nombreAsistente} · Panel`,
     `<h1>Panel de ${asistente()}</h1>
-<p><a href="/panel/crm"><b>📊 Abrir el CRM</b></a> <span class="ayuda">(conversaciones, entrevistas y ventas)</span></p>
+<p><a href="/panel/crm"><b>📊 Abrir el CRM</b></a> <span class="ayuda">(conversaciones, entrevistas y ventas)</span> · <a href="/panel/seguidos"><b>👥 Personas que sigues</b></a> <span class="ayuda">(${asistente()} no les contesta: ${listaSeguidos(almacen).size})</span></p>
 ${
   pendientes
     ? `<div class="tarjeta"><h2 style="margin-top:0">🚀 Primeros pasos (${pasos.length - pendientes}/${pasos.length})</h2>${listaPasos}</div>`
@@ -143,6 +144,35 @@ ${
 <div class="tarjeta metricas"><b>Últimos 7 días</b><br>${metricas}<span>Gasto IA: <b>${coste.toFixed(2)} $</b></span>${desgloseGasto(almacen)}</div>
 <h2>Conversaciones</h2>
 <table><tr><th>Contacto</th><th>Estado</th><th>Última actividad</th></tr>${filas || "<tr><td colspan=3>Todavía no hay conversaciones.</td></tr>"}</table>`,
+    "/panel",
+  );
+}
+
+// ---------- Personas que sigues ----------
+
+export function htmlSeguidos(almacen) {
+  const lista = [...listaSeguidos(almacen)];
+  const cuando = fechaSeguidos(almacen);
+  return pagina(
+    `${negocio.nombreAsistente} · Personas que sigues`,
+    `<h1>👥 Personas que sigues</h1>
+<p>${asistente()} <b>no contesta</b> (ni hace seguimientos) a las cuentas de esta lista. A todos los demás les contesta como siempre. Tu cuenta de pruebas siempre recibe respuesta.</p>
+<div class="tarjeta"><b>${lista.length}</b> cuentas${cuando ? ` · actualizada el ${esc(fecha(cuando, { year: "numeric" }))}` : " · todavía no has cargado ninguna lista"}</div>
+<h2>Actualizar la lista</h2>
+<ol class="pasos"><li>En Instagram: <b>Centro de cuentas → Tu información y permisos → Descargar tu información</b> → elige tu cuenta → <b>Algunos de tus datos</b> → marca solo <b>Seguidores y seguidos</b> → formato <b>JSON</b> → crear archivo. Te avisan cuando esté listo (puede tardar un rato).</li>
+<li>Descarga el .zip, ábrelo y busca el archivo <b>following.json</b> (dentro de la carpeta <i>connections/followers_and_following</i>).</li>
+<li>Súbelo aquí. La lista anterior se sustituye por la nueva. Repítelo de vez en cuando: si empiezas a seguir a alguien nuevo, ${asistente()} le contestará hasta que vuelvas a subir el archivo.</li></ol>
+<div class="tarjeta"><label>Archivo following.json</label><input type="file" id="archivo" accept=".json,.txt,.csv">
+<label>O pega aquí los usuarios <span class="ayuda">(uno por línea o separados por comas)</span></label><textarea id="texto"></textarea>
+<button class="principal" id="guardar">Guardar la lista</button> <span id="estado"></span></div>
+${lista.length ? `<details class="tarjeta"><summary>Ver las ${lista.length} cuentas</summary><pre>${esc(lista.map((u) => "@" + u).join("\n"))}</pre></details>` : ""}
+<script>
+const e=document.getElementById("estado"),b=document.getElementById("guardar");
+b.onclick=async()=>{const f=document.getElementById("archivo").files[0];const texto=f?await f.text():document.getElementById("texto").value;
+if(!texto.trim()){e.textContent="Elige el archivo o pega los usuarios.";return}b.disabled=true;e.textContent="Guardando…";
+try{const r=await fetch("/panel/seguidos",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({texto})});const d=await r.json();
+if(!r.ok)throw new Error(d.error||r.status);e.textContent="✅ Lista guardada: "+d.total+" cuentas";setTimeout(()=>location.reload(),1200)}catch(x){e.textContent="No se ha podido guardar: "+x.message;b.disabled=false}};
+</script>`,
     "/panel",
   );
 }

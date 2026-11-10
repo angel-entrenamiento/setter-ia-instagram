@@ -374,7 +374,11 @@ ${campos}<p><button class="principal">Guardar desplegables</button></p></form>`;
 
 function bloqueActualizaciones() {
   const e = estadoActualizacion();
-  const estadoTexto = !e.actual
+  const estadoTexto = e.copiaPropia
+    ? e.hayNueva
+      ? `🆕 La plantilla de Ángel tiene novedades que tu copia aún no tiene. Versión instalada: ${corta(e.actual)}.`
+      : `✅ Tu copia tiene todas las novedades de la plantilla. Versión instalada: ${corta(e.actual)}.`
+    : !e.actual
     ? "No se sabe qué versión está instalada (solo se ve dentro de Railway)."
     : e.hayNueva
       ? `🆕 Hay una versión nueva (${corta(e.ultima)}). Tienes la ${corta(e.actual)}.`
@@ -385,13 +389,15 @@ function bloqueActualizaciones() {
 <p>${esc(estadoTexto)}${e.error ? `<br><span class="mal">${esc(e.error)}</span>` : ""}</p>
 ${
   e.hayNueva && e.novedades.length
-    ? `<details open><summary><b>Qué trae la versión nueva</b></summary>${e.novedades
+    ? `<details open><summary><b>${e.copiaPropia ? "Qué traen las novedades" : "Qué trae la versión nueva"}</b></summary>${e.novedades
         .map((n) => `<p><b>${esc(n.titulo)}</b>${n.fecha ? ` <span class="ayuda">(${esc(n.fecha)})</span>` : ""}</p><pre>${esc(n.texto)}</pre>`)
         .join("")}</details>`
     : ""
 }
 ${
-  e.configurada
+  e.copiaPropia
+    ? `<p class="ayuda">Tienes <b>tu propia copia del código</b>, así que las novedades de la plantilla de Ángel no se instalan solas. Para traerlas, abre Claude Code en tu copia y dile <span class="copiar">trae las novedades de la plantilla</span>. Cada cambio que subas se instala en 2-3 minutos.</p>`
+    : e.configurada
     ? `<form method="post" action="/panel/actualizar" class="fila"><button class="principal" name="accion" value="actualizar" onclick="return confirm('Tu setter se reiniciará en 2-3 minutos con la última versión. No pierdes nada de tu configuración. ¿Seguir?')">Actualizar ahora</button><button name="accion" value="comprobar">Comprobar si hay versión nueva</button></form>`
     : `<p class="ayuda">Para que se actualice solo (o con un botón), añade una vez la variable <span class="copiar">TOKEN_RAILWAY</span>: en Railway, abre tu proyecto → <b>Settings → Tokens</b> → crea un token (nombre «actualizaciones», entorno «production»), cópialo y pégalo en tu servicio → <b>Variables</b> → <span class="copiar">TOKEN_RAILWAY</span>.</p>`
 }

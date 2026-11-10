@@ -149,3 +149,43 @@ test("solo avisan los setters con licencia válida", async () => {
   await revisarActualizaciones(almacen, { automatica: true, hora: 14, avisar, pedir: conNovedades(conEntrada("Z"), "con-licencia-mala") });
   assert.equal(emails.length, 1, "con la licencia ya válida, sí avisa");
 });
+// ---------- Copia propia del código (repositorio privado de un compañero) ----------
+test("copia propia: no se instala sola, avisa de las novedades que le faltan con cómo traerlas", async () => {
+  Object.assign(process.env, { RAILWAY_GIT_REPO_OWNER: "angel-entrenamiento", RAILWAY_GIT_REPO_NAME: "setter-jorge", RAILWAY_GIT_COMMIT_SHA: "propio789" });
+  Object.assign(cfg, { emailAvisos: "dueno@ejemplo.com" });
+  negocio.avisarActualizaciones = true;
+  try {
+    const almacen = new AlmacenSqlite(":memory:");
+    const emails = [];
+    const avisar = async (e) => void emails.push(e);
+    let e = await forzarComprobacion(conNovedades(LOCAL, "plantilla1"));
+    assert.equal(e.copiaPropia, true);
+    assert.equal(e.hayNueva, false, "su commit no coincide con la plantilla, pero no le falta ninguna novedad");
+    await revisarActualizaciones(almacen, { automatica: true, hora: 4, avisar, pedir: conNovedades(LOCAL, "plantilla1") });
+    assert.equal(emails.length, 0);
+
+    e = await forzarComprobacion(conNovedades(conEntrada("Mejora de la plantilla"), "plantilla2"));
+    assert.equal(e.hayNueva, true);
+    assert.equal(e.configurada, false, "nunca se instala sola");
+    peticiones = [];
+    assert.equal(await revisarActualizaciones(almacen, { automatica: true, hora: 4, avisar, pedir: conNovedades(conEntrada("Mejora de la plantilla"), "plantilla2") }), false);
+    assert.ok(!peticiones.some((p) => p.url.includes("railway")), "no pide nada a Railway");
+    assert.equal(emails.length, 1);
+    assert.match(emails[0].asunto, /plantilla de Ángel: Mejora de la plantilla/);
+    assert.match(emails[0].cuerpo, /trae las novedades de la plantilla/);
+    await assert.rejects(actualizarAhora(almacen, { pedir: simulado() }), /propia copia/);
+  } finally {
+    delete process.env.RAILWAY_GIT_REPO_OWNER;
+    delete process.env.RAILWAY_GIT_REPO_NAME;
+  }
+});
+
+test("instalado desde la plantilla de Ángel no es copia propia", async () => {
+  Object.assign(process.env, { RAILWAY_GIT_REPO_OWNER: "angel-entrenamiento", RAILWAY_GIT_REPO_NAME: "setter-ia-instagram" });
+  try {
+    assert.equal(estadoActualizacion().copiaPropia, false);
+  } finally {
+    delete process.env.RAILWAY_GIT_REPO_OWNER;
+    delete process.env.RAILWAY_GIT_REPO_NAME;
+  }
+});

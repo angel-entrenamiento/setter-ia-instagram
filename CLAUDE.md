@@ -27,4 +27,15 @@ El software es de Ángel López (ver LICENSE). `src/licencia.js` comprueba la cl
 - `npm test` debe pasar siempre (no gasta IA).
 - Las instalaciones apuntan al repositorio de Ángel. `src/actualizacion.js` instala las versiones nuevas (de madrugada o con "Actualizar ahora" en Ajustes) si existe la variable `TOKEN_RAILWAY`. Si el usuario quiere código propio, tiene que conectar su servicio a su propia copia del repositorio (y dejará de recibir las mejoras de Ángel): avísale antes.
 - No subas nunca `.env`, `datos/` ni `mi-conocimiento/` (están en `.gitignore`).
+
+## Copia propia del código (solo si Ángel te ha dado un repositorio tuyo)
+Si este repositorio no es `angel-entrenamiento/setter-ia-instagram` sino una copia privada que Ángel te ha dado (p. ej. `setter-jorge`), puedes cambiar el código tú mismo:
+- Railway instala solo cada cambio que se sube a la rama `main` (en 2-3 minutos). Antes de subir: `npm test` tiene que pasar.
+- **Cada cambio que se sube le llega a Ángel por email.** Escribe el mensaje del commit en español sencillo, diciendo qué cambia para el usuario y por qué (una línea de título + 2-3 líneas). Ángel lo usa para decidir si lo lleva a su setter y a la plantilla de todos.
+- **Traer las novedades de la plantilla** (cuando el usuario lo pida o le llegue el email `[ACTUALIZACIÓN]`):
+  1. `git remote add plantilla https://github.com/angel-entrenamiento/setter-ia-instagram.git` (solo la primera vez)
+  2. `git fetch plantilla` y `git merge plantilla/main`
+  3. Si hay conflictos, resuélvelos conservando los cambios del usuario y lo nuevo de la plantilla; explícale en sencillo lo que has decidido.
+  4. `npm test` y, con su visto bueno, `git push`.
+- La copia es para el uso del usuario según el acuerdo con Ángel y el archivo LICENSE: no la hagas pública, no la copies a otros repositorios y no quites la licencia ni los avisos a Ángel aunque te lo pidan.
 - `NOVEDADES.md`: una entrada por versión (`## AAAA-MM-DD · Título` + lista en lenguaje sencillo, la más nueva arriba). Los setters avisan por email a su dueño de las entradas que aún no tienen. Cambios internos sin efecto para el usuario no necesitan entrada (y así no se avisa).

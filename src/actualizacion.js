@@ -18,18 +18,33 @@ const estado = { ultima: null, comprobadaAt: null, error: "", novedades: [] };
 
 export const versionActual = () => process.env.RAILWAY_GIT_COMMIT_SHA || "";
 export const corta = (sha) => (sha ? sha.slice(0, 7) : "?");
+
+/** Repositorio de GitHub desde el que Railway ha instalado este setter ("dueño/nombre"; vacío si no viene de GitHub). */
+export const repositorioInstalado = () =>
+  process.env.RAILWAY_GIT_REPO_OWNER && process.env.RAILWAY_GIT_REPO_NAME
+    ? `${process.env.RAILWAY_GIT_REPO_OWNER}/${process.env.RAILWAY_GIT_REPO_NAME}`.toLowerCase()
+    : "";
+/**
+ * Copia propia del código (repositorio privado que Ángel da a un compañero para que haga sus cambios).
+ * No se instala nada automáticamente: las novedades de la plantilla las trae su dueño con Claude Code.
+ */
+export const esCopiaPropia = () => Boolean(repositorioInstalado()) && repositorioInstalado() !== REPOSITORIO;
+
 export const puedeActualizarse = () =>
-  Boolean(process.env.TOKEN_RAILWAY && process.env.RAILWAY_SERVICE_ID && process.env.RAILWAY_ENVIRONMENT_ID);
+  !esCopiaPropia() && Boolean(process.env.TOKEN_RAILWAY && process.env.RAILWAY_SERVICE_ID && process.env.RAILWAY_ENVIRONMENT_ID);
 
 export function estadoActualizacion() {
   const actual = versionActual();
+  const copiaPropia = esCopiaPropia();
   return {
     actual,
     ultima: estado.ultima,
-    hayNueva: Boolean(estado.ultima && actual && estado.ultima !== actual),
+    // En una copia propia los commits nunca coinciden con los de la plantilla: lo nuevo son las novedades que aún no tiene
+    hayNueva: copiaPropia ? estado.novedades.length > 0 : Boolean(estado.ultima && actual && estado.ultima !== actual),
     comprobadaAt: estado.comprobadaAt,
     error: estado.error,
     configurada: puedeActualizarse(),
+    copiaPropia,
     novedades: estado.novedades,
   };
 }
@@ -95,7 +110,7 @@ export async function comprobarUltimaVersion({ pedir = fetch } = {}) {
     return estadoActualizacion();
   }
   estado.novedades = [];
-  if (estadoActualizacion().hayNueva) {
+  if (esCopiaPropia() || estadoActualizacion().hayNueva) {
     try {
       const locales = novedadesLocales();
       const fecha = locales ? "" : await fechaDeVersion(versionActual(), pedir);
@@ -108,8 +123,24 @@ export async function comprobarUltimaVersion({ pedir = fetch } = {}) {
 }
 
 /** Email al dueño con lo que trae la versión nueva. */
-export function construirEmailNovedades(novedades, { automatica, configurada }) {
+export function construirEmailNovedades(novedades, { automatica, configurada, copiaPropia = false }) {
   const asistente = negocio.nombreAsistente;
+  if (copiaPropia) {
+    const bloques = novedades.map((n) => `${n.titulo.toUpperCase()}${n.fecha ? ` (${n.fecha})` : ""}\n${n.texto}`);
+    return {
+      etiqueta: "ACTUALIZACION",
+      para: config.emailAvisos,
+      asunto: `[ACTUALIZACIÓN] Novedades en la plantilla de Ángel: ${novedades[0].titulo}`,
+      cuerpo: [
+        `Ángel ha publicado mejoras en la plantilla del setter que tu copia de ${asistente} todavía no tiene.`,
+        "Como tienes tu propia copia del código, no se instalan solas. Para traerlas: abre Claude Code en tu copia y dile «trae las novedades de la plantilla». Las juntará con tus cambios y, cuando las subas, se instalarán.",
+        "",
+        "QUÉ TRAEN",
+        "",
+        bloques.join("\n\n"),
+      ].join("\n"),
+    };
+  }
   const como = !configurada
     ? `Para instalarla: en Railway añade la variable TOKEN_RAILWAY (lo explica tu panel → Ajustes → Actualizaciones) y luego pulsa «Actualizar ahora».`
     : automatica
@@ -150,6 +181,7 @@ async function railway(query, variables, pedir) {
 
 /** Pide a Railway que despliegue la última versión. El servidor se reinicia solo en 2-3 minutos. */
 export async function actualizarAhora(almacen, { pedir = fetch } = {}) {
+  if (esCopiaPropia()) throw new Error("Tienes tu propia copia del código: las novedades de la plantilla se traen con Claude Code («trae las novedades de la plantilla»).");
   if (!puedeActualizarse()) throw new Error("Falta la variable TOKEN_RAILWAY en Railway (mira la guía, apartado Actualizaciones).");
   const e = estado.ultima ? estadoActualizacion() : await comprobarUltimaVersion({ pedir });
   const variables = { serviceId: process.env.RAILWAY_SERVICE_ID, environmentId: process.env.RAILWAY_ENVIRONMENT_ID };
@@ -188,7 +220,7 @@ export async function revisarActualizaciones(almacen, { automatica, hora, avisar
   const ultimaNovedad = e.novedades[0]?.id;
   if (e.hayNueva && ultimaNovedad && avisar && negocio.avisarActualizaciones && licenciaPermite() && almacen.ajuste("novedades_avisadas") !== ultimaNovedad) {
     almacen.fijarAjuste("novedades_avisadas", ultimaNovedad);
-    await Promise.resolve(avisar(construirEmailNovedades(e.novedades, { automatica, configurada: e.configurada }))).catch((error) =>
+    await Promise.resolve(avisar(construirEmailNovedades(e.novedades, { automatica, configurada: e.configurada, copiaPropia: e.copiaPropia }))).catch((error) =>
       console.error(`[actualizacion] aviso por email: ${error.message}`),
     );
   }

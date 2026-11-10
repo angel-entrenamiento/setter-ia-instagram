@@ -5,7 +5,7 @@ import crypto from "node:crypto";
 
 export const SERVIDOR_LICENCIAS = "https://setter-licencias-angel.up.railway.app";
 const MARGEN_SIN_CONEXION = 7 * 24 * 3600 * 1000;
-const VERSION = "1.1.0";
+const VERSION = "1.2.0";
 
 // "pendiente" (aún no se ha comprobado: solo los primeros segundos tras arrancar) | "ok" | "sin_clave" | "invalida" | "sin_conexion"
 const estado = { estado: "pendiente", motivo: "", comprobadaAt: null };
@@ -36,7 +36,16 @@ export async function comprobarLicencia(almacen, { clave = process.env.LICENCIA,
     const r = await pedir(`${SERVIDOR_LICENCIAS}/api/validar`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ clave, instalacion: idInstalacion(almacen), cuenta, url, version: VERSION }),
+      body: JSON.stringify({
+        clave,
+        instalacion: idInstalacion(almacen),
+        cuenta,
+        url,
+        version: VERSION,
+        // De qué repositorio de GitHub viene el código instalado (Railway lo indica en estas variables)
+        repositorio: [process.env.RAILWAY_GIT_REPO_OWNER, process.env.RAILWAY_GIT_REPO_NAME].filter(Boolean).join("/"),
+        commit: process.env.RAILWAY_GIT_COMMIT_SHA || "",
+      }),
       signal: AbortSignal.timeout(15000),
     });
     if (!r.ok) throw new Error(`el servidor de licencias ha respondido ${r.status}`);

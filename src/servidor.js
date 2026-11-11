@@ -13,7 +13,8 @@ import { procesarEvento, aplicarEtiqueta, reiniciar, enListaBlanca } from "./mot
 import { firmaCorrecta } from "./utilidades/enlaces.js";
 import { parsearCuerpoManychat } from "./utilidades/cuerpoManychat.js";
 import { crearCrm } from "./crm/index.js";
-import { extraerUsuarios, guardarSeguidos } from "./seguidos.js";
+import { etapaDe, ETAPAS } from "./crm/leads.js";
+import { extraerUsuarios, guardarSeguidos, deshacerSeguidos } from "./seguidos.js";
 import { cargarListasCrm, guardarListasCrm } from "./crm/opciones.js";
 import { paginaPrivacidad, paginaBorradoDatos } from "./paginasLegales.js";
 import { clienteAnthropic } from "./cerebro/llm.js";
@@ -23,6 +24,8 @@ import { crearConocimientoConIA, proponerCorreccion, leerPropuesta, aplicarPropu
 import * as P from "./panel/paginas.js";
 import { licenciaPermite, estadoLicencia, comprobarLicencia } from "./licencia.js";
 import { actualizarAhora, comprobarUltimaVersion } from "./actualizacion.js";
+
+const NOMBRE_ETAPA = Object.fromEntries(ETAPAS.map((e) => [e.clave, e.nombre]));
 
 const ID_PRUEBA = "panel:prueba";
 
@@ -39,7 +42,7 @@ export function crearServidor({ almacen, manychat: mc = manychat, enviarEmail: e
   usarAlmacenConocimiento(almacen);
   // CRM (src/crm): tablas en la misma base de datos; el INBOUND solo cuenta conversaciones desde que existe
   const crm = almacen.db
-    ? crearCrm({ db: almacen.db, zonaHoraria: () => config.zonaHoraria, conversaciones: () => almacen.todas(), nombreAsistente: () => negocio.nombreAsistente })
+    ? crearCrm({ db: almacen.db, zonaHoraria: () => config.zonaHoraria, conversaciones: () => almacen.todas(), nombreAsistente: () => negocio.nombreAsistente, esPrueba: enListaBlanca })
     : null;
   if (crm) {
     cargarListasCrm(almacen);
@@ -188,7 +191,18 @@ export function crearServidor({ almacen, manychat: mc = manychat, enviarEmail: e
       return redirigir(res, "/panel/ajustes?m=crm#crm");
     }
 
-    if (ruta === "/panel") return html(res, P.htmlInicio(almacen));
+    if (ruta === "/panel") {
+      let datosCrm = {};
+      try {
+        if (crm) {
+          const p = crm.pendientes();
+          datosCrm = { pendientes: p.total, esperan: new Set(p.esperan.map((e) => e.convId)), entrevistas: crm.almacen.filasDeTabla("entrevista") };
+        }
+      } catch (error) {
+        console.error(`[panel] CRM en el inicio: ${error.message}`);
+      }
+      return html(res, P.htmlInicio(almacen, datosCrm));
+    }
 
     if (ruta === "/panel/seguidos") {
       if (metodo !== "POST") return html(res, P.htmlSeguidos(almacen));
@@ -198,11 +212,18 @@ export function crearServidor({ almacen, manychat: mc = manychat, enviarEmail: e
       } catch {
         return responder(res, 400, { error: "No se ha podido leer el archivo" });
       }
+      if (datos.deshacer) {
+        const total = deshacerSeguidos(almacen);
+        if (total === null) return responder(res, 400, { error: "No hay ningún cambio que deshacer" });
+        console.log(`[seguidos] deshecho el último cambio: ${total} cuentas`);
+        return responder(res, 200, { ok: true, total });
+      }
       const usuarios = extraerUsuarios(datos.texto);
       if (!usuarios.length) return responder(res, 400, { error: "No he encontrado ningún usuario en ese archivo" });
-      guardarSeguidos(almacen, usuarios);
-      console.log(`[seguidos] lista actualizada: ${usuarios.length} cuentas`);
-      return responder(res, 200, { ok: true, total: usuarios.length });
+      // Lo que se pega a mano se AÑADE a la lista; el archivo de Instagram la sustituye entera
+      const total = guardarSeguidos(almacen, usuarios, { anadir: Boolean(datos.anadir) });
+      console.log(`[seguidos] lista actualizada: ${total} cuentas`);
+      return responder(res, 200, { ok: true, total, ...(datos.anadir ? { anadidas: usuarios.length } : {}) });
     }
 
     if (ruta === "/panel/modo" && metodo === "POST") {
@@ -216,10 +237,16 @@ export function crearServidor({ almacen, manychat: mc = manychat, enviarEmail: e
       const conv = almacen.obtener(decodeURIComponent(r[1]));
       if (!conv) return responder(res, 404, "No encontrada", "text/plain; charset=utf-8");
       if (metodo === "POST") {
-        await accionConversacion(conv, await leerFormulario(req));
-        return redirigir(res, ruta);
+        const form = await leerFormulario(req);
+        await accionConversacion(conv, form);
+        // Desde la lista del inicio (botón Pausar/Reactivar) se vuelve a la lista
+        return redirigir(res, form.get("volver") === "/panel" ? "/panel#conversaciones" : ruta);
       }
-      return html(res, P.htmlConversacion(conv));
+      let etapa = "";
+      try {
+        if (crm) etapa = NOMBRE_ETAPA[etapaDe(conv, crm.almacen.filaDeConversacion("entrevista", conv.id))] ?? "";
+      } catch {}
+      return html(res, P.htmlConversacion(conv, { etapa }));
     }
 
     if (ruta === "/panel/probar") {

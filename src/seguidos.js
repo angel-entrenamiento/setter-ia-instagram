@@ -38,10 +38,38 @@ export function extraerUsuarios(texto) {
   return [...usuarios].filter(esUsuario).sort();
 }
 
-export function guardarSeguidos(almacen, usuarios) {
-  almacen.fijarAjuste(CLAVE, JSON.stringify(usuarios));
+/**
+ * Guarda la lista. Con `anadir`, junta los usuarios nuevos con los que ya había (lo que se pega a mano);
+ * sin él, la sustituye (al subir el archivo de Instagram). La lista anterior se guarda para poder deshacer.
+ * @returns {number} cuántas cuentas tiene la lista ahora
+ */
+export function guardarSeguidos(almacen, usuarios, { anadir = false } = {}) {
+  const antes = [...listaSeguidos(almacen)];
+  const nueva = anadir ? [...new Set([...antes, ...usuarios])].sort() : usuarios;
+  almacen.fijarAjuste(`${CLAVE}_anterior`, JSON.stringify(antes));
+  almacen.fijarAjuste(CLAVE, JSON.stringify(nueva));
   almacen.fijarAjuste(`${CLAVE}_fecha`, new Date().toISOString());
-  caches.set(almacen, new Set(usuarios));
+  caches.set(almacen, new Set(nueva));
+  return nueva.length;
+}
+
+/** Vuelve a la lista que había antes del último cambio. Devuelve cuántas cuentas tiene, o null si no hay nada que deshacer. */
+export function deshacerSeguidos(almacen) {
+  let anterior = null;
+  try {
+    anterior = JSON.parse(almacen.ajuste(`${CLAVE}_anterior`) ?? "null");
+  } catch {}
+  if (!Array.isArray(anterior)) return null;
+  return guardarSeguidos(almacen, anterior);
+}
+
+export function tamanoAnteriorSeguidos(almacen) {
+  try {
+    const a = JSON.parse(almacen.ajuste(`${CLAVE}_anterior`) ?? "null");
+    return Array.isArray(a) ? a.length : null;
+  } catch {
+    return null;
+  }
 }
 
 export function listaSeguidos(almacen) {

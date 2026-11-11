@@ -105,7 +105,18 @@ export function crearTareas({ almacen, manychat, enviarEmail, crm = null, log = 
     const desde = new Date(hasta - 7 * 24 * HORA);
     const metricas = almacen.contarEventos(+desde, +hasta);
     const costeUsd = almacen.sumarCoste(+desde, +hasta);
-    await enviarEmail(construirEmailResumenSemanal(metricas, { desde, hasta, costeUsd }));
+    // Semáforos del CRM: los 7 días anteriores a hoy frente a los 7 de antes
+    let resumenCrm = null;
+    try {
+      if (crm?.resumen) {
+        const ayer = ahoraLocal(new Date(+hasta - 24 * HORA)).dia, haceUna = ahoraLocal(new Date(+hasta - 7 * 24 * HORA)).dia;
+        const haceDos = ahoraLocal(new Date(+hasta - 14 * 24 * HORA)).dia, haceOcho = ahoraLocal(new Date(+hasta - 8 * 24 * HORA)).dia;
+        resumenCrm = { actual: crm.resumen(haceUna, ayer).metricas, anterior: crm.resumen(haceDos, haceOcho).metricas, pendientes: crm.pendientes?.().total ?? 0, objetivo: crm.objetivoSemanal?.().objetivo ?? null };
+      }
+    } catch (error) {
+      log.error(`[resumen semanal] CRM: ${error.message}`);
+    }
+    await enviarEmail(construirEmailResumenSemanal(metricas, { desde, hasta, costeUsd, crm: resumenCrm }));
   }
 
   async function informeDudas() {

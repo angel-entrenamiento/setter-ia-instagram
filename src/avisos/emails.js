@@ -145,9 +145,37 @@ export function nombresMetricas() {
   };
 }
 
-export function construirEmailResumenSemanal(metricas, { desde, hasta, costeUsd }) {
+const ESTADO_META = { verde: "🟢 en la meta", amarillo: "🟡 cerca de la meta", rojo: "🔴 por debajo de la meta", sin_datos: "sin datos" };
+const num = (v) => (v === null || v === undefined ? "—" : Number(v).toLocaleString("es-ES", { maximumFractionDigits: 1 }));
+
+/** Bloque «Cómo vas frente a tus metas» con las tarjetas del CRM de esta semana y la anterior. */
+export function lineasMetas(actual, anterior, pendientes = 0, objetivo = null) {
+  const t = actual.tarjetas, a = anterior?.tarjetas;
+  const antes = (clave, unidad) => (a?.[clave] && a[clave].valor !== null ? ` (semana anterior: ${num(a[clave].valor)}${unidad})` : "");
+  const linea = (nombre, clave, unidad, detalle, meta) =>
+    `• ${nombre}: ${num(t[clave].valor)}${t[clave].valor === null ? "" : unidad}${antes(clave, unidad)} · ${detalle}${meta ? ` · meta ${meta} · ${ESTADO_META[t[clave].semaforo] ?? ""}` : ""}`;
+  const fallan = t.asistencia && t.asistencia.semaforo === "rojo" ? t.asistencia.b - t.asistencia.a : 0;
+  return [
+    "CÓMO VAS FRENTE A TUS METAS (últimos 7 días)",
+    objetivo ? `• Agendas de la semana: ${actual.citas} de tu objetivo de ${objetivo}${actual.citas >= objetivo ? " · 🟢 objetivo cumplido" : ` · te faltaron ${objetivo - actual.citas}`}` : null,
+    linea("Respuesta a bienvenidas", "respuesta", " %", `${t.respuesta.a} de ${t.respuesta.b} bienvenidas`, "20 %"),
+    linea("Conversaciones por cada 100 bienvenidas", "conversaciones", "", `${t.conversaciones.a} con 3+ mensajes`, "unas 10"),
+    linea("Agendas outbound (de cada 100 bienvenidas)", "citas", " %", `${t.citas.a} citas`, "1-3 %"),
+    t.citasInbound ? linea("Agendas inbound (te escriben o palabra clave)", "citasInbound", " %", `${t.citasInbound.a} de ${t.citasInbound.b}`, "30-50 %") : null,
+    t.asistencia ? linea("Llamadas agendadas que se realizan", "asistencia", " %", `${t.asistencia.a} de ${t.asistencia.b} marcadas`, "80 % o más") : null,
+    linea("Llamadas que acaban en cliente", "cierre", " %", `${t.cierre.a} de ${t.cierre.b} realizadas`, ""),
+    fallan ? `⚠️ Ojo: no se presentaron ${fallan} de ${t.asistencia.b} llamadas (más del 20 %). Eso suele indicar que algo falla en cómo se agendan.` : null,
+    t.respuesta.b ? "" : "Ojo: no hay bienvenidas apuntadas esta semana. Súmalas en el CRM (pestaña Registro) para que salgan los porcentajes.",
+    pendientes ? `Tienes ${pendientes} ${pendientes === 1 ? "cosa pendiente" : "cosas pendientes"} en «Te toca a ti»: ${config.urlPublica}/panel/crm` : `CRM: ${config.urlPublica}/panel/crm`,
+    "",
+  ]
+    .filter((x) => x !== null)
+    .filter((x, i, arr) => x !== "" || arr[i - 1] !== "");
+}
+
+export function construirEmailResumenSemanal(metricas, { desde, hasta, costeUsd, crm = null }) {
   const fmt = (d) => d.toLocaleDateString("es-ES", { timeZone: config.zonaHoraria, day: "numeric", month: "short" });
-  const lineas = Object.entries(nombresMetricas()).map(([k, nombre]) => `• ${nombre}: ${metricas[k] ?? 0}`);
+  const lineas = [...(crm ? lineasMetas(crm.actual, crm.anterior, crm.pendientes, crm.objetivo) : []), crm ? "ACTIVIDAD DE LA SEMANA" : "", ...Object.entries(nombresMetricas()).map(([k, nombre]) => `• ${nombre}: ${metricas[k] ?? 0}`)].filter((x) => x !== "" || crm);
   return {
     etiqueta: "RESUMEN",
     para: para(),

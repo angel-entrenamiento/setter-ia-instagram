@@ -16,7 +16,7 @@ export function crearAlmacenCrm(db) {
     CREATE INDEX IF NOT EXISTS crm_filas_periodo ON crm_filas (tabla, periodo);
   `);
 
-  const leerFila = (f) => (f ? { id: f.id, tabla: f.tabla, periodo: f.periodo, convId: f.conv_id, origen: f.origen, ...JSON.parse(f.datos) } : null);
+  const leerFila = (f) => (f ? { id: f.id, tabla: f.tabla, periodo: f.periodo, convId: f.conv_id, origen: f.origen, creada: f.creada, ...JSON.parse(f.datos) } : null);
 
   return {
     // ---------- Conversaciones (KPI diarios) ----------
@@ -76,7 +76,7 @@ export function crearAlmacenCrm(db) {
     actualizarFila(id, cambios, periodo) {
       const antes = this.fila(id);
       if (!antes) return null;
-      const { id: _i, tabla: _t, periodo: _p, convId: _c, origen: _o, ...datos } = antes;
+      const { id: _i, tabla: _t, periodo: _p, convId: _c, origen: _o, creada: _cr, ...datos } = antes;
       const nuevos = { ...datos, ...cambios };
       db.prepare("UPDATE crm_filas SET datos = ?, periodo = ? WHERE id = ?").run(JSON.stringify(nuevos), periodo ?? antes.periodo, id);
       return { antes, despues: this.fila(id) };
@@ -91,6 +91,23 @@ export function crearAlmacenCrm(db) {
         .prepare("SELECT * FROM crm_filas WHERE periodo LIKE ? ORDER BY periodo, id")
         .all(`${anio}%`)
         .map(leerFila);
+    },
+    filasDeTabla(tabla) {
+      return db.prepare("SELECT * FROM crm_filas WHERE tabla = ? ORDER BY periodo, id").all(tabla).map(leerFila);
+    },
+    /** { "2026-11-10": { outbound: 40, … } } de todos los días */
+    todosLosKpis() {
+      const res = {};
+      for (const f of db.prepare("SELECT fecha, campo, valor FROM crm_kpi").all()) (res[f.fecha] ??= {})[f.campo] = f.valor;
+      return res;
+    },
+    /** Gasto de IA (USD) entre dos instantes, de la tabla de costes del setter (si existe). */
+    gastoEntre(desdeMs, hastaMs) {
+      try {
+        return Number(db.prepare("SELECT COALESCE(SUM(usd), 0) AS s FROM costes WHERE fecha >= ? AND fecha < ?").get(desdeMs, hastaMs).s);
+      } catch {
+        return 0;
+      }
     },
     filaDeConversacion(tabla, convId) {
       return leerFila(db.prepare("SELECT * FROM crm_filas WHERE tabla = ? AND conv_id = ? ORDER BY id DESC LIMIT 1").get(tabla, convId));

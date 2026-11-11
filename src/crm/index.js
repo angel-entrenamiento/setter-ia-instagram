@@ -3,6 +3,9 @@
 import { crearAlmacenCrm } from "./almacen.js";
 import { CAMPOS_KPI, listasCrm, COLUMNAS_ENTREVISTA, COLUMNAS_VENTA, COLUMNAS_LEAD_MAGNET, entrevistaDesdeConversacion, esOutbound } from "./opciones.js";
 import { paginaCrm } from "./pagina.js";
+import { calcularPendientes } from "./pendientes.js";
+import { calcularLeads, conversacionesActivas } from "./leads.js";
+import { calcularMetricas, evolucionSemanal, registroDiario, agendadasEntre, lunesDe, METAS, MENSAJES_CONVERSACION, sumarDias } from "./metricas.js";
 
 export function diaEn(zonaHoraria, fecha = new Date()) {
   const p = Object.fromEntries(
@@ -19,9 +22,10 @@ const SI = (v) => v === true || v === 1 || v === "1" || v === "si";
 
 /**
  * @param {{ db: import("node:sqlite").DatabaseSync, zonaHoraria: string | (() => string), conversaciones: () => object[],
- *          nombreAsistente?: string | (() => string), log?: Console }} op  (zona y nombre pueden ser funciones: cambian en Ajustes)
+ *          nombreAsistente?: string | (() => string), esPrueba?: (conv: object) => boolean, log?: Console }} op
+ *        (zona y nombre pueden ser funciones: cambian en Ajustes; esPrueba = cuentas de prueba, no cuentan en el Resumen)
  */
-export function crearCrm({ db, zonaHoraria = "Europe/Madrid", conversaciones = () => [], nombreAsistente = "el asistente", log = console }) {
+export function crearCrm({ db, zonaHoraria = "Europe/Madrid", conversaciones = () => [], nombreAsistente = "el asistente", esPrueba = () => false, log = console }) {
   const almacen = crearAlmacenCrm(db);
   const valor = (v) => (typeof v === "function" ? v() : v);
   const hoy = () => diaEn(valor(zonaHoraria));
@@ -57,6 +61,9 @@ export function crearCrm({ db, zonaHoraria = "Europe/Madrid", conversaciones = (
     const fecha = cambios.fecha_entrevista ?? actual.fecha_entrevista;
     const periodo = fecha ? fecha.slice(0, 7) : actual.periodo;
     const extra = {};
+    // Día en que se puso la fecha de la entrevista = día en que quedó agendada (para el registro diario)
+    if (cambios.fecha_entrevista && !actual._agendadaEn) extra._agendadaEn = hoy();
+    if ("fecha_entrevista" in cambios && !cambios.fecha_entrevista) extra._agendadaEn = null;
     if ("entra" in cambios && SI(cambios.entra) !== SI(actual.entra)) {
       if (SI(cambios.entra)) {
         extra._cerradaEn = fecha || hoy();
@@ -98,6 +105,72 @@ export function crearCrm({ db, zonaHoraria = "Europe/Madrid", conversaciones = (
     };
   }
 
+  // ---------- Resumen (semáforos, embudo y evolución semanal) ----------
+
+  const DIA = /^\d{4}-\d{2}-\d{2}$/;
+  const baseMetricas = () => ({
+    conversaciones: conversaciones(),
+    kpis: almacen.todosLosKpis(),
+    entrevistas: almacen.filasDeTabla("entrevista"),
+    diaEn: (fecha) => diaEn(valor(zonaHoraria), fecha),
+    esPrueba,
+  });
+
+  /** «Te toca a ti»: leads esperando respuesta y llamadas por fijar o marcar. */
+  function pendientes() {
+    return { hoy: hoy(), ...calcularPendientes({ conversaciones: conversaciones(), entrevistas: almacen.filasDeTabla("entrevista"), hoy: hoy(), esPrueba }) };
+  }
+
+  /** Tablero de leads: cada persona que contestó en el periodo, con la etapa a la que ha llegado. */
+  function leads(desde, hasta) {
+    const hoyDia = hoy();
+    hasta = DIA.test(hasta ?? "") ? hasta : hoyDia;
+    desde = DIA.test(desde ?? "") ? desde : sumarDias(hasta, -29);
+    const { conversaciones: convs, entrevistas, diaEn: d } = baseMetricas();
+    return { hoy: hoyDia, ...calcularLeads({ conversaciones: convs, entrevistas, diaEn: d, desde, hasta, esPrueba }) };
+  }
+
+  /** Registro diario de un mes ("AAAA-MM") por vía, con el panel lateral mensual, trimestral y anual. */
+  function registro(mes) {
+    const hoyDia = hoy();
+    if (!/^\d{4}-\d{2}$/.test(mes ?? "")) mes = hoyDia.slice(0, 7);
+    return { hoy: hoyDia, asistente: asistente(), mensajesConversacion: MENSAJES_CONVERSACION, ...registroDiario({ ...baseMetricas(), mes, hoy: hoyDia }) };
+  }
+
+  function resumen(desde, hasta) {
+    const hoyDia = hoy();
+    hasta = DIA.test(hasta ?? "") ? hasta : hoyDia;
+    desde = DIA.test(desde ?? "") ? desde : sumarDias(hasta, -29);
+    if (desde > hasta) [desde, hasta] = [hasta, desde];
+    const base = baseMetricas();
+    // El gasto se guarda por instante: aproximamos el día con la hora UTC (diferencia de 1-2 h, sin efecto práctico)
+    const gastoUsd = almacen.gastoEntre(Date.parse(`${desde}T00:00:00Z`), Date.parse(`${sumarDias(hasta, 1)}T00:00:00Z`));
+    return {
+      hoy: hoyDia,
+      asistente: asistente(),
+      metas: METAS,
+      mensajesConversacion: MENSAJES_CONVERSACION,
+      metricas: calcularMetricas({ ...base, gastoUsd, desde, hasta, hoy: hoyDia }),
+      semanal: evolucionSemanal({ ...base, hoy: hasta, semanas: 12 }),
+      activas: conversacionesActivas({ ...base }),
+      objetivo: objetivoSemanal(),
+    };
+  }
+
+  /** Objetivo de agendas por semana (lo escribe el dueño en el Resumen) y cuántas lleva esta semana, de lunes a hoy. */
+  const CLAVE_OBJETIVO = "objetivo_agendas_semana";
+  function objetivoSemanal(dia = hoy()) {
+    const objetivo = Math.max(0, Math.round(Number(almacen.nota(CLAVE_OBJETIVO)) || 0));
+    const semana = lunesDe(dia);
+    return { objetivo: objetivo || null, semana, llevas: agendadasEntre({ ...baseMetricas(), desde: semana, hasta: dia }) };
+  }
+
+  /** Suma bienvenidas enviadas (columna Outbound) en un día. */
+  function sumarBienvenidas(cantidad, dia = hoy()) {
+    almacen.sumarKpi(dia, "outbound", cantidad);
+    return almacen.todosLosKpis()[dia]?.outbound ?? 0;
+  }
+
   // ---------- HTTP (rutas /panel/crm…, ya autenticadas por el servidor) ----------
 
   /** @returns {Promise<boolean>} true si la ruta era del CRM */
@@ -113,6 +186,30 @@ export function crearCrm({ db, zonaHoraria = "Europe/Madrid", conversaciones = (
       }
       if (ruta === "/panel/crm/api/datos" && req.method === "GET") {
         ok(datos(String(url.searchParams.get("anio") ?? hoy().slice(0, 4)).replace(/\D/g, "").slice(0, 4)));
+        return true;
+      }
+      if (ruta === "/panel/crm/api/leads" && req.method === "GET") {
+        ok(leads(url.searchParams.get("desde"), url.searchParams.get("hasta")));
+        return true;
+      }
+      if (ruta === "/panel/crm/api/pendientes" && req.method === "GET") {
+        ok(pendientes());
+        return true;
+      }
+      if (ruta === "/panel/crm/api/registro" && req.method === "GET") {
+        ok(registro(url.searchParams.get("mes")));
+        return true;
+      }
+      if (ruta === "/panel/crm/api/resumen" && req.method === "GET") {
+        ok(resumen(url.searchParams.get("desde"), url.searchParams.get("hasta")));
+        return true;
+      }
+      if (ruta === "/panel/crm/api/bienvenidas" && req.method === "POST") {
+        const { cantidad, fecha } = await json();
+        const c = Math.round(Number(cantidad));
+        if (!Number.isFinite(c) || c === 0 || Math.abs(c) > 1000 || (fecha && !DIA.test(fecha))) return mal(400, "cantidad"), true;
+        const dia = fecha || hoy();
+        ok({ ok: true, fecha: dia, outbound: sumarBienvenidas(c, dia) });
         return true;
       }
       if (ruta === "/panel/crm/api/kpi" && req.method === "POST") {
@@ -140,6 +237,7 @@ export function crearCrm({ db, zonaHoraria = "Europe/Madrid", conversaciones = (
         const id = Number(m[1]);
         const { cambios = {} } = await json();
         delete cambios._cerradaEn;
+        delete cambios._agendadaEn;
         const fila = almacen.fila(id);
         if (!fila) return mal(404, "no existe"), true;
         ok(fila.tabla === "entrevista" ? actualizarEntrevista(id, cambios) : almacen.actualizarFila(id, cambios).despues);
@@ -160,5 +258,5 @@ export function crearCrm({ db, zonaHoraria = "Europe/Madrid", conversaciones = (
     }
   }
 
-  return { registrar, manejar, datos, almacen, actualizarEntrevista, trimestre };
+  return { registrar, manejar, datos, resumen, objetivoSemanal, registro, pendientes, leads, sumarBienvenidas, almacen, actualizarEntrevista, trimestre };
 }

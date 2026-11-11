@@ -8,7 +8,8 @@ import { PREGUNTAS, cambioAplicable, AJUSTES_EDITABLES } from "./educar.js";
 import { estadoActualizacion, corta } from "../actualizacion.js";
 import { construirPrompt } from "../cerebro/prompt.js";
 import { LISTAS_EDITABLES, listasCrm } from "../crm/opciones.js";
-import { listaSeguidos, fechaSeguidos } from "../seguidos.js";
+import { listaSeguidos, fechaSeguidos, tamanoAnteriorSeguidos } from "../seguidos.js";
+import { etapaDe, ETAPAS } from "../crm/leads.js";
 
 export const esc = (t) =>
   String(t ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -29,7 +30,17 @@ nav b{margin-right:8px}nav a{text-decoration:none;color:var(--suave);padding:4px
 table{border-collapse:collapse;width:100%;background:var(--tarjeta);border-radius:10px;overflow:hidden}
 td,th{padding:8px;border-bottom:1px solid var(--borde);text-align:left;font-size:.92rem;vertical-align:top}
 .tag{display:inline-block;padding:1px 8px;border-radius:10px;font-size:.78rem;background:var(--marca-suave)}.pausa{background:var(--aviso)}
-.chat div{padding:4px 0}.lead{color:var(--suave)}.bot{color:var(--marca)}.dueno{color:#b4541a}
+.chat{display:flex;flex-direction:column;gap:6px}
+.burbuja{max-width:78%;padding:7px 11px;border-radius:14px;white-space:pre-wrap;word-break:break-word;font-size:.94rem;align-self:flex-end;background:var(--marca-suave);border-bottom-right-radius:4px}
+.burbuja small{display:block;color:var(--suave);font-size:.72rem;margin-bottom:1px}
+.burbuja.lead{align-self:flex-start;background:var(--fondo);border:1px solid var(--borde);border-radius:14px;border-bottom-left-radius:4px}
+.burbuja.dueno{background:#fbe6d6}.burbuja.sistema{align-self:center;background:none;color:var(--suave);font-size:.82rem;max-width:100%}
+@media (prefers-color-scheme:dark){.burbuja.dueno{background:#4a3020}}
+.ficha{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:4px 18px;margin:0}
+.ficha div{padding:3px 0;border-bottom:1px solid var(--borde)}.ficha dt{font-size:.78rem;color:var(--suave)}.ficha dd{margin:0}
+details.plegado{background:var(--tarjeta);border:1px solid var(--borde);border-radius:10px;padding:10px 16px;margin:10px 0}
+details.plegado summary{font-weight:600}details.plegado .tarjeta{border:none;padding:0;margin:8px 0 0}
+.indice{display:flex;flex-wrap:wrap;gap:6px}.indice a{padding:4px 10px;border:1px solid var(--borde);border-radius:99px;background:var(--tarjeta);text-decoration:none;font-size:.88rem}
 button,.boton{display:inline-block;padding:8px 14px;margin:4px 6px 4px 0;border-radius:8px;border:1px solid var(--borde);background:var(--tarjeta);color:var(--texto);font-size:.95rem;cursor:pointer;text-decoration:none}
 button.principal,.boton.principal{background:var(--marca);border-color:var(--marca);color:#fff}
 @media (prefers-color-scheme:dark){button.principal,.boton.principal{color:#111}}
@@ -40,6 +51,8 @@ pre{white-space:pre-wrap;word-break:break-word;background:var(--fondo);padding:1
 .metricas span{display:inline-block;margin:3px 14px 3px 0}.ok{color:var(--marca)}.mal{color:var(--peligro)}
 .pasos li{margin:6px 0}.copiar{font-family:ui-monospace,Consolas,monospace;background:var(--fondo);padding:2px 6px;border-radius:6px;word-break:break-all}
 details summary{cursor:pointer}.fila{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.filtros button{padding:6px 10px;font-size:.86rem}.filtros button.activo{border-color:var(--marca);color:var(--marca);font-weight:600}
+#tabla button{padding:4px 10px;font-size:.82rem;margin:0;white-space:nowrap}
 `;
 
 // Al enviar un formulario lento (IA), desactiva el botón y avisa de que está trabajando
@@ -62,20 +75,21 @@ export function pagina(titulo, cuerpo, activa = "") {
 <body><nav><b>🤖 ${asistente()}</b>${enlaces}</nav><main>${cuerpo}</main>${SCRIPT_ESPERA}</body></html>`;
 }
 
+// Mensajes como en Instagram: el lead a la izquierda; el asistente y tú, a la derecha (tú en otro color)
 function lineasChat(conv) {
   return conv.historial
     .map(
       (m) =>
-        `<div class="${esc(m.rol)}"><small>${esc(fecha(m.fecha))}${m.seguimiento !== undefined ? ` · seguimiento ${m.seguimiento === 0 ? "8 h" : m.seguimiento === 1 ? "24 h" : m.seguimiento}` : ""}</small> <b>${esc(nombreAutor(m.rol))}:</b> ${m.tipo !== "texto" ? `[${esc(m.tipo)}] ` : ""}${esc(m.resumen ? `${m.texto} — ${m.resumen}` : m.texto)}</div>`,
+        `<div class="burbuja ${esc(m.rol)}"><small>${esc(nombreAutor(m.rol))} · ${esc(fecha(m.fecha))}${m.seguimiento !== undefined ? ` · seguimiento ${m.seguimiento === 0 ? "8 h" : m.seguimiento === 1 ? "24 h" : m.seguimiento}` : ""}</small>${m.tipo !== "texto" ? `[${esc(m.tipo)}] ` : ""}${esc(m.resumen ? `${m.texto} — ${m.resumen}` : m.texto)}</div>`,
     )
     .join("");
 }
 
-const formEducar = (convId, vuelta) => `<h2>🎓 Enseñar a ${asistente()}</h2>
+const formEducar = (convId, vuelta, plegado = false) => `${plegado ? `<details class="plegado"><summary>🎓 Enseñar a ${asistente()} con esta conversación</summary>` : `<h2>🎓 Enseñar a ${asistente()}</h2>`}
 <form method="post" action="/panel/educar" class="tarjeta"><input type="hidden" name="convId" value="${esc(convId)}"><input type="hidden" name="vuelta" value="${esc(vuelta)}">
 <label>¿Qué debería haber hecho distinto?<p class="ayuda">Explícalo como se lo dirías a un setter humano. Ej.: "Aquí no tenía que proponer la llamada todavía, primero pregúntale qué ha probado" o "Cuando digan que no tienen tiempo, responde como en mi objeción de tiempo". La IA te propondrá cambios en el conocimiento y tú decides si aplicarlos (~0,10 $).</p></label>
 <textarea name="comentario" required></textarea>
-<button class="principal" data-espera="Pensando la corrección… (30-60 s)">Proponer corrección</button></form>`;
+<button class="principal" data-espera="Pensando la corrección… (30-60 s)">Proponer corrección</button></form>${plegado ? "</details>" : ""}`;
 
 // ---------- Inicio ----------
 
@@ -103,7 +117,20 @@ export function pasosIniciales(almacen) {
   ];
 }
 
-export function htmlInicio(almacen) {
+const NOMBRE_ETAPA = Object.fromEntries(ETAPAS.map((e) => [e.clave, e.nombre]));
+/** Texto en el que busca el buscador del inicio: nombre, @usuario, ficha y lo que escribió la persona. */
+const textoBuscable = (c) =>
+  [c.ficha?.nombre, c.nombre, c.igUsuario, c.ficha?.situacion, ...(c.historial ?? []).filter((m) => m.rol === "lead").map((m) => m.texto)]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase()
+    .slice(0, 3000);
+
+/**
+ * @param {object} almacen
+ * @param {{ pendientes?: number, esperan?: Set<string>, entrevistas?: object[] }} [crm]  datos del CRM (opcionales)
+ */
+export function htmlInicio(almacen, { pendientes: tocaTi = 0, esperan = new Set(), entrevistas = [] } = {}) {
   const semana = almacen.contarEventos(Date.now() - 7 * 86400000);
   const coste = almacen.sumarCoste(Date.now() - 7 * 86400000);
   const pasos = pasosIniciales(almacen);
@@ -111,15 +138,21 @@ export function htmlInicio(almacen) {
   const listaPasos = `<ol class="pasos">${pasos
     .map((p) => `<li>${p.hecho ? "✅" : "⬜"} <a href="${p.enlace}">${p.texto}</a></li>`)
     .join("")}</ol>`;
-  const filas = almacen
-    .todas()
-    .filter((c) => c.historial.length && !c.id.startsWith("panel:"))
-    .slice(0, 200)
-    .map(
-      (c) => `<tr><td><a href="/panel/c/${encodeURIComponent(c.id)}">${esc(c.ficha?.nombre || c.nombre || "Sin nombre")}</a><br><small>@${esc(c.igUsuario || "?")}</small></td>
-<td><span class="tag">${esc(c.estado)}</span>${c.pausa ? ` <span class="tag pausa">⏸ ${esc(c.pausa.motivo)}</span>` : ""}</td>
-<td>${esc(fecha(c.actualizadaAt, { year: "2-digit" }))}</td></tr>`,
-    )
+  const filaDe = new Map(entrevistas.filter((f) => f.convId).map((f) => [f.convId, f]));
+  const convs = almacen.todas().filter((c) => c.historial.length && !c.id.startsWith("panel:"));
+  const nPausadas = convs.filter((c) => c.pausa).length;
+  const nEsperan = convs.filter((c) => esperan.has(c.id)).length;
+  const filas = convs
+    .map((c, i) => {
+      const id = encodeURIComponent(c.id);
+      const tipo = esperan.has(c.id) ? "esperan pausadas" : c.pausa ? "pausadas" : "";
+      return `<tr data-b="${esc(textoBuscable(c))}" data-t="${tipo}"${i >= 200 ? " hidden" : ""}><td><a href="/panel/c/${id}">${esc(c.ficha?.nombre || c.nombre || "Sin nombre")}</a><br><small>@${esc(c.igUsuario || "?")}</small></td>
+<td><span class="tag">${esc(NOMBRE_ETAPA[etapaDe(c, filaDe.get(c.id))] ?? c.estado)}</span>${c.pausa ? ` <span class="tag pausa">⏸ ${esc(c.pausa.motivo)}</span>` : ""}${esperan.has(c.id) ? ' <span class="tag pausa">Te espera</span>' : ""}</td>
+<td>${esc(fecha(c.actualizadaAt, { year: "2-digit" }))}</td>
+<td><form method="post" action="/panel/c/${id}" style="margin:0"><input type="hidden" name="volver" value="/panel">${
+        c.pausa ? `<button name="accion" value="reactivar" title="${asistente()} vuelve a contestar">▶ Reactivar</button>` : `<button name="accion" value="pausar" title="${asistente()} deja de contestar a esta persona">⏸ Pausar</button>`
+      }</form></td></tr>`;
+    })
     .join("");
   const m = nombresMetricas();
   const metricas = ["atendida", "cualificado", "llamada_propuesta", ...(negocio.productoBaratoActivo ? ["enlace_pago"] : []), "fuera_de_foco", "audio", "alerta", "humano", "error"]
@@ -128,6 +161,7 @@ export function htmlInicio(almacen) {
   return pagina(
     `${negocio.nombreAsistente} · Panel`,
     `<h1>Panel de ${asistente()}</h1>
+${tocaTi ? `<div class="tarjeta" style="border-left:5px solid #c98a00"><b>👉 Te toca a ti: ${tocaTi} ${tocaTi === 1 ? "cosa pendiente" : "cosas pendientes"}</b> <span class="ayuda">(personas que te esperan, llamadas sin fecha o sin marcar)</span> · <a href="/panel/crm#pendientes"><b>Verlas</b></a></div>` : ""}
 <p><a href="/panel/crm"><b>📊 Abrir el CRM</b></a> <span class="ayuda">(conversaciones, entrevistas y ventas)</span> · <a href="/panel/seguidos"><b>👥 Personas que sigues</b></a> <span class="ayuda">(${asistente()} no les contesta: ${listaSeguidos(almacen).size})</span></p>
 ${
   pendientes
@@ -142,8 +176,21 @@ ${
     : `<span>✅ <b>ACTIVO PARA TODOS</b> los que escriben a @${esc(negocio.cuentaInstagram)}.</span><button name="activo" value="si">Volver a modo prueba</button>`
 }</form></div>
 <div class="tarjeta metricas"><b>Últimos 7 días</b><br>${metricas}<span>Gasto IA: <b>${coste.toFixed(2)} $</b></span>${desgloseGasto(almacen)}</div>
-<h2>Conversaciones</h2>
-<table><tr><th>Contacto</th><th>Estado</th><th>Última actividad</th></tr>${filas || "<tr><td colspan=3>Todavía no hay conversaciones.</td></tr>"}</table>`,
+<h2 id="conversaciones">Conversaciones</h2>
+<div class="fila"><input type="text" id="buscar" placeholder="Buscar por nombre, @usuario o algo que dijo (rodilla, precio…)" style="flex:1;min-width:220px" autocomplete="off">
+<span class="filtros"><button type="button" data-f="" class="activo">Todas (${convs.length})</button><button type="button" data-f="pausadas">⏸ Pausadas (${nPausadas})</button><button type="button" data-f="esperan">Esperándote (${nEsperan})</button></span></div>
+<p class="ayuda" id="cuantas">${convs.length > 200 ? `Se ven las 200 más recientes. El buscador busca en las ${convs.length}.` : ""}</p>
+<table id="tabla"><tr><th>Contacto</th><th>Etapa</th><th>Última actividad</th><th></th></tr>${filas || "<tr><td colspan=4>Todavía no hay conversaciones.</td></tr>"}</table>
+<p class="ayuda">⏸ Pausar: ${asistente()} deja de contestar a esa persona (te la quedas tú) hasta que pulses ▶ Reactivar.</p>
+<script>
+(()=>{const q=document.getElementById("buscar"),filas=[...document.querySelectorAll("#tabla tr[data-b]")],info=document.getElementById("cuantas");let filtro="";
+const sinTildes=(t)=>t.normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+const aplicar=()=>{const t=sinTildes(q.value.trim().toLowerCase());let n=0;
+for(const f of filas){const ok=(!t||sinTildes(f.dataset.b).includes(t))&&(!filtro||f.dataset.t.split(" ").includes(filtro));const ver=ok&&(t||filtro||n<200);f.hidden=!ver;if(ver)n++}
+info.textContent=t||filtro?(n?n+(n===1?" conversación":" conversaciones"):"No hay ninguna con eso."):(filas.length>200?"Se ven las 200 más recientes. El buscador busca en las "+filas.length+".":"")};
+q.oninput=aplicar;
+for(const b of document.querySelectorAll(".filtros button"))b.onclick=()=>{filtro=b.dataset.f;for(const x of document.querySelectorAll(".filtros button"))x.classList.toggle("activo",x===b);aplicar()};})();
+</script>`,
     "/panel",
   );
 }
@@ -153,6 +200,7 @@ ${
 export function htmlSeguidos(almacen) {
   const lista = [...listaSeguidos(almacen)];
   const cuando = fechaSeguidos(almacen);
+  const anterior = tamanoAnteriorSeguidos(almacen);
   return pagina(
     `${negocio.nombreAsistente} · Personas que sigues`,
     `<h1>👥 Personas que sigues</h1>
@@ -161,17 +209,24 @@ export function htmlSeguidos(almacen) {
 <h2>Actualizar la lista</h2>
 <ol class="pasos"><li>En Instagram: <b>Centro de cuentas → Tu información y permisos → Descargar tu información</b> → elige tu cuenta → <b>Algunos de tus datos</b> → marca solo <b>Seguidores y seguidos</b> → formato <b>JSON</b> → crear archivo. Te avisan cuando esté listo (puede tardar un rato).</li>
 <li>Descarga el .zip, ábrelo y busca el archivo <b>following.json</b> (dentro de la carpeta <i>connections/followers_and_following</i>).</li>
-<li>Súbelo aquí. La lista anterior se sustituye por la nueva. Repítelo de vez en cuando: si empiezas a seguir a alguien nuevo, ${asistente()} le contestará hasta que vuelvas a subir el archivo.</li></ol>
-<div class="tarjeta"><label>Archivo following.json</label><input type="file" id="archivo" accept=".json,.txt,.csv">
-<label>O pega aquí los usuarios <span class="ayuda">(uno por línea o separados por comas)</span></label><textarea id="texto"></textarea>
-<button class="principal" id="guardar">Guardar la lista</button> <span id="estado"></span></div>
+<li>Súbelo aquí. El archivo <b>sustituye</b> la lista entera. Repítelo de vez en cuando: si empiezas a seguir a alguien nuevo, ${asistente()} le contestará hasta que vuelvas a subir el archivo.</li></ol>
+<div class="tarjeta"><label>Archivo following.json <span class="ayuda">(sustituye la lista)</span></label><input type="file" id="archivo" accept=".json,.txt,.csv">
+<button class="principal" id="guardar">Subir el archivo</button> <span id="estado"></span></div>
+<div class="tarjeta"><label>Añadir cuentas a mano <span class="ayuda">(uno por línea o separados por comas; se suman a las que ya hay)</span></label><textarea id="texto"></textarea>
+<button class="principal" id="anadir">Añadir a la lista</button> <span id="estado2"></span></div>
+${anterior !== null ? `<p class="ayuda">¿Te has equivocado? <button id="deshacer">Deshacer el último cambio</button> (vuelve a la lista anterior de ${anterior} cuentas)</p>` : ""}
 ${lista.length ? `<details class="tarjeta"><summary>Ver las ${lista.length} cuentas</summary><pre>${esc(lista.map((u) => "@" + u).join("\n"))}</pre></details>` : ""}
 <script>
-const e=document.getElementById("estado"),b=document.getElementById("guardar");
-b.onclick=async()=>{const f=document.getElementById("archivo").files[0];const texto=f?await f.text():document.getElementById("texto").value;
-if(!texto.trim()){e.textContent="Elige el archivo o pega los usuarios.";return}b.disabled=true;e.textContent="Guardando…";
-try{const r=await fetch("/panel/seguidos",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({texto})});const d=await r.json();
-if(!r.ok)throw new Error(d.error||r.status);e.textContent="✅ Lista guardada: "+d.total+" cuentas";setTimeout(()=>location.reload(),1200)}catch(x){e.textContent="No se ha podido guardar: "+x.message;b.disabled=false}};
+async function enviar(cuerpo,b,e,ok){b.disabled=true;e.textContent="Guardando…";
+try{const r=await fetch("/panel/seguidos",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(cuerpo)});const d=await r.json();
+if(!r.ok)throw new Error(d.error||r.status);e.textContent="✅ "+ok(d);setTimeout(()=>location.reload(),1200)}catch(x){e.textContent="No se ha podido guardar: "+x.message;b.disabled=false}}
+const b=document.getElementById("guardar"),e=document.getElementById("estado");
+b.onclick=async()=>{const f=document.getElementById("archivo").files[0];if(!f){e.textContent="Elige el archivo following.json.";return}
+if(!confirm("El archivo sustituye la lista entera. ¿Seguimos?"))return;enviar({texto:await f.text()},b,e,(d)=>"Lista guardada: "+d.total+" cuentas")};
+const a=document.getElementById("anadir"),e2=document.getElementById("estado2");
+a.onclick=()=>{const texto=document.getElementById("texto").value;if(!texto.trim()){e2.textContent="Escribe al menos un usuario.";return}
+enviar({texto,anadir:true},a,e2,(d)=>"Añadidas. La lista tiene ahora "+d.total+" cuentas")};
+const dz=document.getElementById("deshacer");if(dz)dz.onclick=()=>{if(confirm("¿Volver a la lista anterior?"))enviar({deshacer:true},dz,e,(d)=>"Lista recuperada: "+d.total+" cuentas")};
 </script>`,
     "/panel",
   );
@@ -203,20 +258,40 @@ function avisoTamano() {
 
 // ---------- Conversación real ----------
 
-export function htmlConversacion(conv) {
+/** Ficha del lead en tarjeta: lo que hay que leer antes de una llamada (solo los datos que tiene). */
+function tarjetaFicha(f = {}) {
+  const v = (x) => (Array.isArray(x) ? x.join("; ") : x === true ? "sí" : x);
+  const campos = [
+    ["Situación", f.situacion], ["Objetivo", f.objetivo], ["Desde cuándo", f.desde_cuando], ["Cómo le afecta", f.afectacion],
+    ["Qué ha probado", f.probado], ["Prioridad (1-10)", f.prioridad_1a10 || ""], ["Dispuesto/a a implicarse", f.dispuesto_implicarse],
+    ["Quién decide el dinero", f.decisor_economico], ["País / zona horaria", f.pais_zona_horaria], ["Prefiere", f.preferencia_franja],
+    ["Objeciones", f.objeciones], ["Señales de alarma", f.senales_alarma], ["Nivel de cualificación", f.nivel_cualificacion],
+    ["Escribe un familiar", f.escribe_familiar ? "sí" : ""], ["Otros datos", f.datos_extra],
+  ].filter(([, x]) => x !== undefined && x !== null && x !== "" && !(Array.isArray(x) && !x.length) && x !== "desconocido");
+  if (!campos.length) return `<div class="tarjeta"><b>Ficha</b><p class="ayuda">Todavía no sabe nada de esta persona.</p></div>`;
+  return `<div class="tarjeta"><b>Ficha</b><dl class="ficha">${campos.map(([n, x]) => `<div><dt>${n}</dt><dd>${esc(v(x))}</dd></div>`).join("")}</dl></div>`;
+}
+
+/**
+ * @param {object} conv
+ * @param {{ etapa?: string }} [extra]  etapa del CRM (nombre), si se conoce
+ */
+export function htmlConversacion(conv, { etapa = "" } = {}) {
   const prueba = enListaBlanca(conv);
+  const usuario = String(conv.igUsuario ?? "").replace(/[^\w.]/g, "");
   return pagina(
     `${negocio.nombreAsistente} · ${conv.nombre}`,
-    `<p><a href="/panel">← Volver</a></p><h1>${esc(conv.ficha?.nombre || conv.nombre || "Sin nombre")} <small>@${esc(conv.igUsuario)}</small></h1>
-<p><span class="tag">${esc(conv.estado)}</span> ${conv.pausa ? `<span class="tag pausa">⏸ ${asistente()} pausado (${esc(conv.pausa.motivo)})</span>` : `<span class="tag">▶ ${asistente()} activo</span>`}
-${conv.enlaceChat ? ` · <a href="${esc(conv.enlaceChat)}" target="_blank">Abrir en ManyChat</a>` : ""}</p>
-<form method="post"><button name="accion" value="pausar">⏸ Pausar a ${asistente()}</button><button name="accion" value="reactivar">▶ Reactivar a ${asistente()}</button>
+    `<p><a href="/panel#conversaciones">← Volver</a></p><h1>${esc(conv.ficha?.nombre || conv.nombre || "Sin nombre")} <small>@${esc(conv.igUsuario)}</small></h1>
+<p><span class="tag">${esc(etapa || conv.estado)}</span> ${conv.pausa ? `<span class="tag pausa">⏸ ${asistente()} pausado (${esc(conv.pausa.motivo)})</span>` : `<span class="tag">▶ ${asistente()} activo</span>`}
+${usuario ? ` · <a href="https://www.instagram.com/${usuario}/" target="_blank" rel="noopener">Abrir en Instagram</a>` : ""}${conv.enlaceChat ? ` · <a href="${esc(conv.enlaceChat)}" target="_blank">Abrir en ManyChat</a>` : ""}</p>
+<form method="post">${conv.pausa ? `<button name="accion" value="reactivar" class="principal">▶ Reactivar a ${asistente()}</button>` : `<button name="accion" value="pausar">⏸ Pausar a ${asistente()}</button>`}
 ${prueba ? '<button name="accion" value="reiniciar">🔄 Reiniciar (cuenta de prueba)</button>' : ""}</form>
+${tarjetaFicha(conv.ficha)}
 <h2>Conversación</h2><div class="tarjeta chat">${lineasChat(conv)}</div>
-${formEducar(conv.id, `/panel/c/${encodeURIComponent(conv.id)}`)}
-<h2>Nota de audio</h2><form method="post" class="tarjeta"><input type="hidden" name="accion" value="nota">
+${formEducar(conv.id, `/panel/c/${encodeURIComponent(conv.id)}`, true)}
+<details class="plegado"><summary>🎤 Apuntar lo que dijo en un audio</summary><form method="post" class="tarjeta"><input type="hidden" name="accion" value="nota">
 <label>¿Qué dijo en el audio?</label><textarea name="queDijo"></textarea><label>¿Qué le contestaste tú? (opcional)</label><textarea name="queContesto"></textarea>
-<button>Guardar nota</button></form><h2>Ficha</h2><pre>${esc(fichaEnTexto(conv.ficha))}</pre>`,
+<button>Guardar nota</button></form></details>`,
   );
 }
 
@@ -368,7 +443,7 @@ function bloqueListasCrm() {
       `<label for="lista_${clave}">${esc(nombre)}</label>${ayuda ? `<p class="ayuda">${esc(ayuda)}</p>` : ""}<textarea id="lista_${clave}" name="lista_${clave}" rows="4">${esc((l[clave] ?? []).join("\n"))}</textarea>`,
   ).join("");
   return `<form method="post" action="/panel/ajustes/crm" class="tarjeta" id="crm"><h2 style="margin-top:0">CRM: opciones de los desplegables</h2>
-<p class="ayuda">Las opciones que salen en la pestaña Entrevistas del <a href="/panel/crm">CRM</a>. Escribe una opción por línea. Si quitas una que ya usabas, las filas que la tenían la conservan.</p>
+<p class="ayuda">Las opciones que salen en Datos → Entrevistas del <a href="/panel/crm">CRM</a>. Escribe una opción por línea. Si quitas una que ya usabas, las filas que la tenían la conservan.</p>
 ${campos}<p><button class="principal">Guardar desplegables</button></p></form>`;
 }
 
@@ -409,8 +484,9 @@ export function htmlAjustes(mensaje = "", comprobacion = null, error = "") {
   return pagina(
     "Ajustes",
     `<h1>Ajustes</h1>${mensaje ? `<div class="tarjeta ok">${mensaje}</div>` : ""}${error ? `<div class="tarjeta mal">${esc(error)}</div>` : ""}
+<div class="indice" style="margin:6px 0 4px"><a href="#negocio">Tu negocio</a><a href="#etiquetas">Etiquetas</a><a href="#avisos">Avisos</a><a href="#venta">Llamada y venta</a><a href="#ia">Pruebas e IA</a><a href="#crm">CRM</a><a href="#actualizaciones">Actualizaciones</a><a href="#claves">Claves</a></div>
 <form method="post">
-<div class="tarjeta"><h2 style="margin-top:0">Tu asistente y tu negocio</h2>
+<div class="tarjeta" id="negocio"><h2 style="margin-top:0">Tu asistente y tu negocio</h2>
 ${campoTexto("nombreAsistente", "Nombre del asistente", "Cómo se presenta a los leads. Ej.: Alex, Lucía…")}
 ${campoTexto("nombreDueno", "Tu nombre", "Con quien será la llamada. El asistente dirá que es «del equipo de [tu nombre]».")}
 ${campoTexto("nombreNegocio", "Nombre de tu negocio o marca")}
@@ -426,14 +502,14 @@ ${campoTexto("etiquetaReactivar", "Etiqueta para reactivarlo", "Por defecto IA_O
 ${campoTexto("etiquetasNoResponder", "Etiquetas de ManyChat a las que NO contesta", "Separadas por comas, escritas igual que en ManyChat. Ej.: ALUMNO, CLIENTES, AMIGOS. A quien tenga cualquiera de ellas el asistente nunca le escribe (tampoco seguimientos).")}
 ${campoArea("bienvenidaManual", "Tu bienvenida manual a seguidores nuevos (opcional)", "Si escribes tú a mano a los seguidores nuevos, pega aquí el texto. Así, cuando contesten, el asistente sigue la conversación sin presentarse.")}
 </div>
-<div class="tarjeta"><h2 style="margin-top:0">Avisos</h2>
+<div class="tarjeta" id="avisos"><h2 style="margin-top:0">Avisos</h2>
 ${campoTexto("emailAvisos", "Email para los avisos", "Tiene que ser EL MISMO email con el que creaste la cuenta de Resend (si no, Resend no los entrega).", "email")}
 ${campoSiNo("avisarEtiquetasNoResponder", "Avisarme por email cuando me escriba alguien con una etiqueta de «no contestar» (como mucho una vez cada 12 h por persona)")}
 ${campoSiNo("avisarActualizaciones", "Avisarme por email cuando haya una versión nueva, con lo que trae")}
 ${campoSiNo("resumenSemanal", "Resumen semanal los lunes")}
 ${campoSiNo("informeDudas", "Informe de dudas e ideas de contenido los jueves (~0,05 $)")}
 </div>
-<div class="tarjeta"><h2 style="margin-top:0">Llamada y venta</h2>
+<div class="tarjeta" id="venta"><h2 style="margin-top:0">Llamada y venta</h2>
 ${campoTexto("descripcionLlamada", "Qué es la llamada que propone", "Ej.: una videollamada gratuita y sin compromiso de 15-20 minutos por Google Meet")}
 ${campoSiNo("exigirDecisor", "Preguntar siempre quién decide el dinero antes de proponer la llamada (recomendado)")}
 ${campoSiNo("seguimientosAutomaticos", "Seguimiento automático a las 24 h si el lead deja de contestar")}
@@ -444,7 +520,7 @@ ${campoTexto("productoBaratoNombre", "Nombre del producto")}
 ${campoTexto("productoBaratoImportes", "Importes que puede decir", "Solo números separados por comas: el precio y, si los menciona, el valor tachado o de los bonus. Ej.: 97, 197. Cualquier otro importe se bloquea.")}
 ${campoTexto("productoBaratoEnlacePago", "Enlace de pago", "", "url")}
 </div>
-<div class="tarjeta"><h2 style="margin-top:0">Pruebas e IA</h2>
+<div class="tarjeta" id="ia"><h2 style="margin-top:0">Pruebas e IA</h2>
 ${campoTexto("listaBlanca", "Cuentas de prueba (sin @, separadas por comas)", "En modo prueba solo responde a estas cuentas. Usa una cuenta secundaria tuya. Desde ellas puedes escribir #reset para empezar de cero.")}
 ${campoOpciones("modelo", "Modelo de IA", [["opus", "Claude Opus (recomendado, ~0,03 $ por respuesta)"], ["sonnet", "Claude Sonnet (más barato, ~0,02 $ por respuesta)"]])}
 ${campoOpciones("modeloSeguimientos", "Modelo para los seguimientos", [["sonnet", "Claude Sonnet (recomendado: ~0,01 $ por seguimiento)"], ["opus", "Claude Opus (algo más fino, ~0,03 $ por seguimiento)"]], "Los mensajes cortos de «Hola Laura, pudiste ver mi mensaje?». Las respuestas a los leads siempre usan el modelo de arriba.")}

@@ -133,7 +133,9 @@ test("API: outbound a mano, notas y filas de ventas", async () => {
   const d = await (await fetch(`${base}/panel/crm/api/datos?anio=2026`, { headers: auth })).json();
   assert.equal(d.kpis["2026-10-16"].outbound, 45);
   assert.equal(d.notas["objetivo:2026-10:outbound"], "500");
-  assert.deepEqual({ ...d.filas[0], id: 0 }, { id: 0, tabla: "venta", periodo: "2026-10", convId: null, origen: "manual", nombre: "Cliente", realizada: 1, mail: "a@b.c" });
+  const { creada, ...fila } = d.filas[0];
+  assert.ok(creada > 0);
+  assert.deepEqual({ ...fila, id: 0 }, { id: 0, tabla: "venta", periodo: "2026-10", convId: null, origen: "manual", nombre: "Cliente", realizada: 1, mail: "a@b.c" });
   await fetch(`${base}/panel/crm/api/fila/${venta.id}`, { method: "DELETE", headers: auth });
   assert.equal((await (await fetch(`${base}/panel/crm/api/datos?anio=2026`, { headers: auth })).json()).filas.length, 0);
 });

@@ -102,6 +102,16 @@ test("la página del panel guarda la lista subida", async () => {
     assert.match(await (await fetch(`${base}/panel/seguidos`, { headers: auth })).text(), /<b>2<\/b> cuentas/);
     assert.match(await (await fetch(`${base}/panel`, { headers: auth })).text(), /Personas que sigues/);
     assert.equal((await subir("!!!")).status, 400);
+    // Pegar a mano AÑADE a la lista, no la sustituye
+    const anadir = (texto) => fetch(`${base}/panel/seguidos`, { method: "POST", headers: { ...auth, "content-type": "application/json" }, body: JSON.stringify({ texto, anadir: true }) });
+    assert.equal((await (await anadir("@nueva.cuenta")).json()).total, 3);
+    assert.equal(loSigue(almacen, "ana.fit"), true);
+    assert.equal(loSigue(almacen, "nueva.cuenta"), true);
+    // Deshacer vuelve a la lista anterior
+    const deshacer = await fetch(`${base}/panel/seguidos`, { method: "POST", headers: { ...auth, "content-type": "application/json" }, body: JSON.stringify({ deshacer: true }) });
+    assert.equal((await deshacer.json()).total, 2);
+    assert.equal(loSigue(almacen, "nueva.cuenta"), false);
+    assert.match(await (await fetch(`${base}/panel/seguidos`, { headers: auth })).text(), /Deshacer el último cambio/);
   } finally {
     servidor.close();
   }
